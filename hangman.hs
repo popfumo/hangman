@@ -1,9 +1,9 @@
 import System.IO 
-import Control.Monad
 import System.Random
+import Control.Monad
+
 
 type Guess = String
-
 type Word = String
 
 main :: IO ()
@@ -22,10 +22,6 @@ main = do
               \   __|__  J L                                            \n\
               \   |___|                                                 "
               
-              
-
-
-
 --Main function
     --Monad.
 
@@ -40,8 +36,6 @@ main = do
     --Fixed amount of guesses.
 
 filepath = "wordlist.txt"
-tpath = "testfile.txt"
-
 
 randomWord = do  
         handle <- openFile filepath ReadMode -- Import wordlist
