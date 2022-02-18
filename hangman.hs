@@ -21,7 +21,9 @@ main = do
               \     |    -|-                                            \n\
               \   __|__  J L                                            \n\
               \   |___|                                                 "
-              
+    putStrLn "Written by Erik Odhner, Edvard Axelman and Viktor Wallstén"
+    word <- getLine
+    putStrLn $ "The word " ++ word ++ " is not correct, kys"        
 --Main function
     --Monad.
 
@@ -47,6 +49,7 @@ randomWord = do
         hClose handle                        -- closes handle
 
 
+
     --txt-file. (or parse the file into an array)
     --Plot out length of word in GUI. 
 
@@ -60,6 +63,3 @@ randomWord = do
 
 --Data types
     --Letter, a list of Chars.
-
-
-
