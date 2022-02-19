@@ -41,17 +41,14 @@ menu = do
     putStrLn "3. Quit game"
     putStrLn "--------------------"
     option <- getLine 
-    menuChoice option
-
-menuChoice :: IO String -> IO ()
-menuChoice option = do
     case option of 
-        "1" -> singleGame
-        "2" -> multiGame
-        "3" -> return ()
-         -- _  -> menu TODO!!!!!!!!
+        "1" -> do singleGame
+        "2" -> do multiGame
+        "3" -> exit
+        _   -> exit
 
-
+exit :: IO ()
+exit = do putStrLn ("exited")
 
 randomWord :: IO String
 randomWord = do  
@@ -64,25 +61,27 @@ randomWord = do
         return $ list !! ranInt              -- Returns a random word from the list with the help of the random number we get.
                                
 
-
-
-
 test = do
     rword <- randomWord
     putStrLn ("Edvard is a: " ++ rword)
 
 
---singleGame :: IO ()
-singleGame = do
+singleGame :: IO ()
+singleGame =  do
     rword <- randomWord
-    getGuess
+    putStrLn ("Edvard is a: " ++ rword)
+    {- rword <- randomWord
+    getGuess -}
 
 
 guessCount = undefined 
     --if guess is wrong. Add 1 to acc.
     --There is a guess limit. So when the acc reaches a certain Int. Call lose function. 
 
-multiGame = undefined
+multiGame :: IO ()
+multiGame = do
+    rword <- randomWord
+    putStrLn ("Edvard is a: " ++ rword)
 
 win :: IO ()
 win = do 
@@ -118,18 +117,15 @@ endgame = do
 
 --Guess
 
-
+getGuess :: IO Char
 getGuess = do
     putStrLn "What is your next guess?"
     inputGuess <- getLine
     case inputGuess of
         -- om tom gissning
-        [] -> getGuess
-        x  -> return x
+        [] -> getGuess 
         -- om det är en string
-        --(x : tail) -> return x
-
-
+        (x : xs) -> return x
 
     -- validChar -- TODO Check that input is a letter and also either only 1 char or the whole string
 
