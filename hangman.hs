@@ -187,7 +187,7 @@ endgame = do
 
 validGuess hangman@(Hangman w _ _) [c] = c `elem` w && (not $ alreadyGuessed hangman [c]) -- kollar om din gissning är i ordet
 
-alreadyGuessed (Hangman _ _ g) [c] = c `elem` g -- kollar om din gissning redan har gissats
+alreadyGuessed (Hangman _ k g) [c] = c `elem` g || c `elem` correctGuess k -- kollar om din gissning redan har gissats
 
 insertWrongGuess (Hangman w k g) [c] = Hangman w k (c:g)
 
