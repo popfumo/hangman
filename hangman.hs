@@ -76,12 +76,13 @@ singleGame =  do
     let lengthWord = (length theWord) - 1
         hangman = Hangman theWord [] []
     putStrLn ("Guess a letter or a string with " ++ show lengthWord ++ " letters")
-    putStrLn (underscores lengthWord)
     singleGameAux hangman
 
 
 singleGameAux :: Hangman -> IO ()
 singleGameAux hangman@(Hangman theWord correct guessed) = do
+    let underscore = foldl (\l x -> insertLetterinUnderscore l x ) (underscores ((length theWord)-1)) correct
+    putStrLn (underscore)
     putStrLn ("the randomWord: " ++ theWord)
     putStrLn ("your guess so far: " ++ correctGuess correct)
     putStrLn ("your bad guesses: " ++ guessed)
@@ -96,7 +97,8 @@ singleGameAux hangman@(Hangman theWord correct guessed) = do
             let newHangman = insertWrongGuess hangman newGuess
             singleGameAux newHangman
 
-    
+
+-- TODO doesnt end on win    
 
 
 underscores :: (Eq a, Num a) => a -> [Char]
@@ -107,7 +109,7 @@ underscores x = '_' : ' ' : underscores (x-1)
 {-  insertLetterinUnderscore xs (index,char)
     inserts a tuple (index,char) into the underscores xs
     RETURNS: String
-    EXAMPLE: foldl (\l x -> underscores' l x ) "_ _ _" [(0,'h'),(1,'e'),(2,'j')] == "h e j"
+    EXAMPLE: foldl (\l x -> insertLetterinUnderscore l x ) "_ _ _" [(0,'h'),(1,'e'),(2,'j')] == "h e j"
 -}
 insertLetterinUnderscore :: (Eq a, Num a) => [Char] -> (a, Char) -> [Char]
 insertLetterinUnderscore [x] (0,char)           = [char]
