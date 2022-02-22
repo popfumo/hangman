@@ -89,7 +89,7 @@ singleGameAux hangman@(Hangman theWord correct guessed) = do
     putStrLn ("the randomWord: " ++ theWord)
     putStrLn ("your guess so far: " ++ correctGuess correct)
     putStrLn ("your bad guesses: " ++ guessed)
-    putStrLn ("Guesses left: " ++ (show numbOfGuesses)) -- Ska minska för varje felgissning.
+    putStrLn ("Guesses left: " --Ska minska för varje felgissning.
     newGuess <- getGuess
     if validGuess hangman newGuess
         then do
