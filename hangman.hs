@@ -89,14 +89,17 @@ singleGameAux hangman@(Hangman theWord correct guessed) = do
     putStrLn ("the randomWord: " ++ theWord)
     putStrLn ("your guess so far: " ++ correctGuess correct)
     putStrLn ("your bad guesses: " ++ guessed)
+    putStrLn ("Guesses left: " ++ (show numbOfGuesses)) -- Ska minska för varje felgissning.
     newGuess <- getGuess
     if validGuess hangman newGuess
         then do
             let newHangman = insertCorrectGuess hangman newGuess
             singleGameAux newHangman
         else do
+            putStrLn ("Incorrect, try again")
             let newHangman = insertWrongGuess hangman newGuess
             singleGameAux newHangman
+
 
 
 getGuess :: IO String
@@ -110,7 +113,7 @@ getGuess = do
 validInput :: String -> Bool
 validInput "" = False
 validInput [x] = True
-validInput (x:xs) = False
+validInput (x:xs) = True -- Om man ska kunna gissa ett helt ord måste (x:xs) vara true
 
 
 
@@ -169,7 +172,7 @@ endgame = do
         else return ()
 
 
-validGuess hangman@(Hangman w _ _) [c] = c `elem` w && (not $ alreadyGuessed hangman [c]) -- kollar om din gissning är i ordet
+validGuess hangman@(Hangman w _ _) [c] =  c `elem` w && (not $ alreadyGuessed hangman [c]) -- kollar om din gissning är i ordet
 
 alreadyGuessed (Hangman _ k g) [c] = c `elem` g || c `elem` correctGuess k -- kollar om din gissning redan har gissats
 
