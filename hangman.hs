@@ -67,8 +67,8 @@ randomWord = do
         ranInt <- randomRIO (1,upper-1)      -- Returns a random IO Int
         hClose handle                        -- closes handle
         let word = list !! ranInt            -- a random word from the list
-            removedR = take (length word - 1) word -- removes the "\r" from the end of the word
-        return removedR                      -- Returns a random word from the list with the help of the random number we get.
+            removedR = take (length word - 1) word -- removes the "\r" from the end of the word. For Linux OS only. 
+        return word                      -- Returns a random word from the list with the help of the random number we get.
 
 
 singleGame :: IO ()
@@ -134,9 +134,6 @@ insertLetterinUnderscore [x] (index, char)      = "_"
 insertLetterinUnderscore (x:y:xs) (0, char)     = char : ' ' : insertLetterinUnderscore xs (-1, char)
 insertLetterinUnderscore (x:y:xs) (index, char) = x : y : insertLetterinUnderscore xs (index-1, char)
 
-guessCount = undefined
-    --if guess is wrong. Add 1 to acc.
-    --There is a guess limit. So when the acc reaches a certain Int. Call lose function. 
 
 correctGuess :: [(a, b)] -> [b]
 correctGuess = map snd
@@ -172,19 +169,6 @@ endgame = do
         else return ()
 
 
---När array är tom når vi basfallet och då har användaren gissat rätt.
---Plocka ur ett
-
---Main function
-    --Monad.
-
---Check gamestate
-    --Win/Lose
-    --New game, calls on the main function again. 
-    --Quit game, terminates the main function.
-
---Guess
-
 validGuess hangman@(Hangman w _ _) [c] = c `elem` w && (not $ alreadyGuessed hangman [c]) -- kollar om din gissning är i ordet
 
 alreadyGuessed (Hangman _ k g) [c] = c `elem` g || c `elem` correctGuess k -- kollar om din gissning redan har gissats
@@ -194,6 +178,9 @@ insertWrongGuess (Hangman w k g) [c] = Hangman w k (c:g)
 insertCorrectGuess (Hangman w k g) [c] = Hangman w (insert) g
                                        where insert = foldl (\l x -> insertCinK [] l (x,c)) k (getIndex w c 0)
 
+insertCorrectWordGuess (Hangman w k g) [c] = undefined 
+
+--TODO: Funktion till som gör det möjligt att gissa ett helt ord. 
 
 h1 = Hangman "test" [(1,'e')] "l"
 
