@@ -3,6 +3,11 @@ import System.Random
 import Control.Monad
 
 
+
+{-   -- TODO --
+
+-}
+
 {-
     Hangman (The random Word) (The correct guessed letters with index as key) (The faulty guessed letters)
 -}
@@ -38,8 +43,6 @@ main :: IO ()
 main = do
     splash
     menu
-
-theword = randomWord
 
 menu :: IO ()
 menu = do
@@ -77,49 +80,58 @@ singleGame =  do
     let lengthWord = length theWord
         hangman = Hangman theWord [] []
     putStrLn ("Guess a letter or a string with " ++ show lengthWord ++ " letters\n")
-    singleGameAux hangman
+    gameAux hangman
 
 
-singleGameAux :: Hangman -> IO ()
-singleGameAux hangman@(Hangman theWord correct guessed) = do
-    win hangman
-    lose hangman
-    let underscore = foldl insertLetterinUnderscore (underscores (length theWord)) correct
-    putStrLn (underscore ++ "\n")
-    putStrLn ("the randomWord: " ++ theWord)
-    putStrLn ("your guess so far: " ++ correctGuess correct)
-    putStrLn ("your bad guesses: " ++ guessed)
-    putStrLn ("Guesses left: ") --Ska minska för varje felgissning.
-    newGuess <- getGuess
-    if validGuess hangman newGuess
+gameAux :: Hangman -> IO ()
+gameAux hangman@(Hangman theWord correct guessed) = do
+    if theWord == correctGuess correct -- check if you won
         then do
-            let newHangman = insertCorrectGuess hangman newGuess
-            singleGameAux newHangman
+            win hangman
         else do
-            putStrLn ("Incorrect, try again")
-            let newHangman = insertWrongGuess hangman newGuess
-            singleGameAux newHangman
+            if (numbOfGuesses - length guessed) <= 0 -- check if you have outrun your number of guesses
+                then do
+                    lose hangman
+                else do
+                    let underscore = foldl insertLetterinUnderscore (underscores (length theWord)) correct
+                    putStrLn (underscore ++ "\n") -- print the current guessed word
+                    putStrLn ("the randomWord: " ++ theWord)
+                    putStrLn ("your guess so far: " ++ correctGuess correct)
+                    putStrLn ("your bad guesses: " ++ guessed)
+                    putStrLn ("Wrong guesses left: " ++ show (numbOfGuesses - length guessed))
+                    newGuess <- getGuess hangman
+                    if length newGuess == length theWord
+                        then do
+                            if newGuess == theWord
+                                then do
+                                    win hangman
+                                else do
+                                    let newHangman = Hangman theWord correct newGuess
+                                    gameAux newHangman
+                        else do    
+                            if validGuess hangman newGuess
+                                then do
+                                    let newHangman = insertCorrectGuess hangman newGuess
+                                    gameAux newHangman
+                                else do
+                                    putStrLn ("Incorrect, try again")
+                                    let newHangman = insertWrongGuess hangman newGuess
+                                    gameAux newHangman
+            
 
-
-
-getGuess :: IO String
-getGuess = do
+getGuess :: Hangman -> IO String
+getGuess hangman = do
     newG <- getLine
-    if validInput newG
+    if validInput newG hangman
         then return newG
         else do putStrLn "Bad guess, try again"
-                getGuess
+                getGuess hangman 
 
-validInput :: String -> Bool
-validInput "" = False
-validInput [x] = True
-validInput (x:xs) = True -- Om man ska kunna gissa ett helt ord måste (x:xs) vara true
-
-
-
--- TODO if there are duplicate chars in the word, insert them both at the same time
---      and make a catch case so you cant guess on the same letter again 
-
+validInput :: String -> Hangman -> Bool
+validInput "" hangman = False
+validInput [x] hangman = True
+validInput ls@(x:xs) (Hangman theWord _ _) = length ls == length theWord
+ 
 
 underscores :: (Eq a, Num a) => a -> [Char]
 underscores 1 = "_"
@@ -137,30 +149,33 @@ insertLetterinUnderscore [x] (index, char)      = "_"
 insertLetterinUnderscore (x:y:xs) (0, char)     = char : ' ' : insertLetterinUnderscore xs (-1, char)
 insertLetterinUnderscore (x:y:xs) (index, char) = x : y : insertLetterinUnderscore xs (index-1, char)
 
+printWord :: String -> String
+printWord [x]    = [x]
+printWord (x:xs) = x : ' ' : printWord xs 
 
 correctGuess :: [(a, b)] -> [b]
 correctGuess = map snd
 
 multiGame :: IO ()
 multiGame = do
-    rword <- randomWord
-    putStrLn ("Edvard is a: " ++ rword)
+    putStrLn "Input the word to guess: "
+    getWord <- getLine
+    gameAux (Hangman getWord [] [])
 
 win :: Hangman -> IO ()
-win (Hangman word correct guessed)
-    | correctGuess correct == word = do
-                                     putStrLn "Congratulations! You won!"
-                                     endgame
-    | otherwise                    = return ()
+win (Hangman word correct guessed) = do
+    print $ printWord word
+    putStrLn "\nCongratulations! You won!\n"
+    endgame
 
 lose :: Hangman -> IO ()
 lose (Hangman word _ guessed)
-    | wrongGuess >= numbOfGuesses = do
-                                    putStrLn $ "You lose"
-                                    putStrLn $ "The actual word was: " ++ word
+    | (length guessed) >= numbOfGuesses = do
+                                    putStrLn $ "You lost!\n"
+                                    putStrLn $ "The actual word was: \n" ++ printWord word
                                     endgame
     | otherwise                   = return ()
-    where wrongGuess = length guessed - length [x | x <- guessed, x `elem` word]
+    --where wrongGuess = length guessed - length [x | x <- guessed, x `elem` word]
 
 
 endgame :: IO ()
@@ -181,19 +196,13 @@ insertWrongGuess (Hangman w k g) [c] = Hangman w k (c:g)
 insertCorrectGuess (Hangman w k g) [c] = Hangman w (insert) g
                                        where insert = foldl (\l x -> insertCinK [] l (x,c)) k (getIndex w c 0)
 
-insertCorrectWordGuess (Hangman w k g) [c] = undefined 
-
---TODO: Funktion till som gör det möjligt att gissa ett helt ord. 
-
 h1 = Hangman "test" [(1,'e')] "l"
-
-
-
 
 {-  insertCinK ys xs (i,c)
     inserts (i,c) in xs according to the index i
     EXAMPLE: insertCinK [] [(0,'h'),(2,'j')] (1,'e') == [(0,'h'),(1,'e'),(2,'j')]
 -}
+insertCinK :: [(Int,Char)] -> [(Int,Char)] -> (Int, Char) -> [(Int,Char)]
 insertCinK ys [] (i,c) = foldr (\x l -> x : l) [(i,c)] ys
 insertCinK ys ((xi,xv):xs) (i,c)
     | i < xi    = foldr (\x l -> x : l) ((i,c) : ((xi,xv):xs)) ys
@@ -215,20 +224,3 @@ createTuples :: [Int] -> Char -> [(Int,Char)]
 createTuples [x] c    = [(x,c)]
 createTuples (x:xs) c = (x,c) : createTuples xs c
 
---User wordinput.
---Connected to guess count.
---Fixed amount of guesses.
-
---txt-file. (or parse the file into an array)
---Plot out length of word in GUI. 
-
---WordCheck
---Keeps track if the word is complete, calls on win status if the word is complete. 
-
---Guess count
---Keeps track of how many guesses.
-    --Wrong or right guess.
-    --Max amount of guesses, if guess limit exceed: calls on lose status. 
-
---Data types
-    --Letter, a list of Chars.
