@@ -38,7 +38,7 @@ splash = do
               \     |     O                                             \n\
               \     |    -|-                                            \n\
               \   __|__  J L                                            \n\
-              \   |___|                                                 "
+              \   |   |                                                 "
     putStrLn "Written by Erik Odhner, Edvard Axelman and Viktor Wallstén"
 
 main :: IO ()
@@ -73,7 +73,7 @@ randomWord = do
         hClose handle                        -- closes handle
         let word = list !! ranInt            -- a random word from the list
             removedR = take (length word - 1) word -- removes the "\r" from the end of the word. For Linux OS only. 
-        return word                      -- Returns a random word from the list with the help of the random number we get.
+        return removedR                     -- Returns a random word from the list with the help of the random number we get.
 
 
 singleGame :: IO ()
@@ -96,11 +96,13 @@ gameAux hangman@(Hangman theWord correct guessed) = do
                     lose hangman
                 else do
                     let underscore = foldl insertLetterinUnderscore (underscores (length theWord)) correct
+                        guessesLeft = numbOfGuesses - length guessed
+                    tree (guessesLeft)
                     putStrLn (underscore ++ "\n") -- print the current guessed word
-                    putStrLn ("the randomWord: " ++ theWord)
-                    putStrLn ("your guess so far: " ++ correctGuess correct)
-                    putStrLn ("your bad guesses: " ++ guessed)
-                    putStrLn ("Wrong guesses left: " ++ show (numbOfGuesses - length guessed))
+                    --putStrLn ("the randomWord: " ++ theWord)
+                    --putStrLn ("your guess so far: " ++ correctGuess correct)
+                    putStrLn ("Bad guesses: " ++ guessed)
+                    --putStrLn ("Guesses left: " ++ show guessesLeft)
                     newGuess <- getGuess hangman
                     if length newGuess == length theWord
                         then do
@@ -116,7 +118,7 @@ gameAux hangman@(Hangman theWord correct guessed) = do
                                     let newHangman = insertCorrectGuess hangman newGuess
                                     gameAux newHangman
                                 else do
-                                    putStrLn ("Incorrect, try again")
+                                    putStrLn ("Incorrect, try another letter")
                                     let newHangman = insertWrongGuess hangman newGuess
                                     gameAux newHangman
 
@@ -165,7 +167,7 @@ multiGame = do
 
 win :: Hangman -> IO ()
 win (Hangman word correct guessed) = do
-    print $ printWord word
+    putStrLn $ printWord word
     putStrLn "\nCongratulations! You won!\n"
     endgame
 
@@ -173,6 +175,7 @@ lose :: Hangman -> IO ()
 lose (Hangman word _ guessed)
     | (length guessed) >= numbOfGuesses = do
                                     putStrLn $ "You lost!\n"
+                                    tree 0  -- print the hangman
                                     putStrLn $ "The actual word was: \n" ++ printWord word
                                     endgame
     | otherwise                   = return ()
@@ -190,7 +193,7 @@ validGuess hangman@(Hangman w _ _) [c] =  c `elem` w && (not $ alreadyGuessed ha
 
 alreadyGuessed (Hangman _ k g) [c] = c `elem` g || c `elem` correctGuess k -- kollar om din gissning redan har gissats
 
-insertWrongGuess (Hangman w k g) [c] = Hangman w k (c:g)
+insertWrongGuess (Hangman w k g) [c] = Hangman w k (g ++ [c])
 
 insertCorrectGuess (Hangman w k g) [c] = Hangman w (insert) g
                                        where insert = foldl (\l x -> insertCinK [] l (x,c)) k (getIndex w c 0)
@@ -223,3 +226,52 @@ createTuples :: [Int] -> Char -> [(Int,Char)]
 createTuples [x] c    = [(x,c)]
 createTuples (x:xs) c = (x,c) : createTuples xs c
 
+
+
+tree i = treePrint i   
+
+treePrint 0 = do
+    putStrLn "   ______ \n\
+             \  |      |\n\
+             \  |      O\n\
+             \  |     -|- \n\
+             \__|__   J L \n\
+             \|   |"
+
+treePrint 1 = do
+    putStrLn "   ______ \n\
+             \  |      |\n\
+             \  |      O\n\
+             \  |     -|- \n\
+             \__|__     \n\
+             \|   |"
+
+treePrint 2 = do
+    putStrLn "   ______ \n\
+             \  |      |\n\
+             \  |      O\n\
+             \  |       \n\
+             \__|__     \n\
+             \|   |"
+
+treePrint 3 = do
+    putStrLn "   ______ \n\
+             \  |       \n\
+             \  |       \n\
+             \  |       \n\
+             \__|__     \n\
+             \|   |"
+
+treePrint 4 = do 
+    putStrLn "  |  \n\
+             \  |  \n\
+             \  |  \n\
+             \__|__\n\
+             \|   |"
+
+treePrint 5 = do 
+    putStrLn "____\n\
+             \|  |"
+
+treePrint i = do
+    putStrLn ""
