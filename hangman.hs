@@ -1,6 +1,8 @@
 import System.IO
 import System.Random
 import Control.Monad
+import Graphics.Gloss
+
 
 
 
@@ -117,7 +119,6 @@ gameAux hangman@(Hangman theWord correct guessed) = do
                                     putStrLn ("Incorrect, try again")
                                     let newHangman = insertWrongGuess hangman newGuess
                                     gameAux newHangman
-            
 
 getGuess :: Hangman -> IO String
 getGuess hangman = do
@@ -182,9 +183,7 @@ endgame :: IO ()
 endgame = do
     putStrLn "Do you want play again? (y/n): "
     usrInp <- getLine
-    if usrInp == "yes" || usrInp == "y"
-        then main
-        else return ()
+    when (usrInp == "yes" || usrInp == "y") main
 
 
 validGuess hangman@(Hangman w _ _) [c] =  c `elem` w && (not $ alreadyGuessed hangman [c]) -- kollar om din gissning är i ordet
