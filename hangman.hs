@@ -19,10 +19,12 @@ import Graphics.Gloss.Data.Color
 data Hangman = Hangman String [(Int,Char)] [Char]
     deriving (Show)
 
+data World = World Scene Hangman
+
+data Scene = Menu | Single | Multi | Exit
+
 type Guess = String
 type Word = String
-
-type World = (Float, Float)
 
 
 numbOfGuesses :: Int
@@ -32,6 +34,9 @@ filepath = "wordlist.txt"
 
 window :: Display
 window = InWindow "Hangman" (1000 , 700) (10,10)
+
+world :: World
+world = World Menu (Hangman "" [] [])
 
 background :: Color
 background = white
@@ -54,31 +59,74 @@ splash = do
               \   |   |                                                 "
     putStrLn "Written by Erik Odhner, Edvard Axelman and Viktor Wallstén"
 
-hangmanGui
+--hangmanGui :: Display -> Color -> (Picture -> Hangman -> Picture) -> IO ()
 
-guiMain :: IO ()
-guiMain = display window background $ printDrawings (guiMenu menuList)
-    --inputHandler
+--guiMain :: IO ()
+guiMain = play 
+    window 
+    background 
+    20
+    world 
+    drawingFunc 
+    menuSelector --inputHandler 
+    updateFunc
+    
 
-guiTest = play window background 20 (0,0) 
+-- If scene == Single then check for letter instead
+menuSelector :: Event -> World -> World
+menuSelector event world = case event of
+        (EventKey (Char '1') Down _ _) -> World Single (Hangman "test" [] [])
+        --2 -> Multi
+        (EventKey (Char '3') Down _ _) -> World Exit (Hangman "" [] [])
+        _ -> world
 
-printDrawings xs = pictures xs
+
+
+
+drawingFunc :: World -> Picture
+drawingFunc (World scene h) = case scene of
+        Menu    -> printScene (guiMenu)
+        Single  -> printScene ([color green $ Circle 80])
+        Multi   -> undefined--printScene multiplayer
+        Exit    -> printScene (exitScene)
+        _       -> printScene (guiMenu)
+
+
+
+-- printScene (guiMenu)
+printScene xs = pictures xs
 
 reScale = scale 0.2 0.2
 
-guiMenu xs = foldl (\l x -> (translate 0 (realToFrac $ (-30) * (length l)) $ reScale $ color black $ text x) : l) [] xs
+guiMenu = createPictureMenu menuList
+
+exitScene = [reScale $ text "Bye Bye"]
+
+
+createPictureMenu xs = foldl (\l x -> (translate 0 (realToFrac $ (-30) * (length l)) $ reScale $ color black $ text x) : l) [] xs
 
 menuList = ["1. Singleplayer","2. Multiplayer","3. Quit Game"]
 
 newText = text "TEST123"
 
 
+updateFunc :: Float -> World -> World
+updateFunc _ w = w
+  where
+    towardCenter :: Float -> Float
+    towardCenter c = if abs c < 0.25
+      then 0
+      else if c > 0
+        then c - 1.25
+        else c + 1.25
+
+
+
+
+
 inputHandler :: Event -> World -> World
-inputHandler (EventKey (SpecialKey KeyUp) Down _ _) (x, y) = (x, y + 10)
-
-
-handleKeys (EventKey (Char char) _ _ _) 
-        | char == '1' = display window background newText
+inputHandler (EventKey (SpecialKey KeyUp) Down _ _) w = undefined
+inputHandler _ w = w
 
 
 
