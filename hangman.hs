@@ -68,25 +68,32 @@ guiMain = play
     20
     world 
     drawingFunc 
-    menuSelector --inputHandler 
+    eventHandler
     updateFunc
     
 
 -- If scene == Single then check for letter instead
-menuSelector :: Event -> World -> World
-menuSelector event world = case event of
+eventHandler :: Event -> World -> World
+eventHandler event (World Menu _) = case event of
         (EventKey (Char '1') Down _ _) -> World Single (Hangman "test" [] [])
         --2 -> Multi
         (EventKey (Char '3') Down _ _) -> World Exit (Hangman "" [] [])
         _ -> world
-
+eventHandler (EventKey (Char input) Down _ _) (World Single hangman)
+    | validInput [input] hangman = if validGuess hangman [input]
+                            then let newHangman = insertCorrectGuess hangman [input]
+                                 in World Single newHangman
+                            else let newHangman = insertWrongGuess hangman [input]
+                                 in World Single newHangman
+    | otherwise = World Single hangman
+eventHandler event world@(World Single hangman) = world
 
 
 
 drawingFunc :: World -> Picture
-drawingFunc (World scene h) = case scene of
+drawingFunc (World scene hangman) = case scene of
         Menu    -> printScene (guiMenu)
-        Single  -> printScene ([color green $ Circle 80])
+        Single  -> printScene (singleScene hangman)
         Multi   -> undefined--printScene multiplayer
         Exit    -> printScene (exitScene)
         _       -> printScene (guiMenu)
@@ -99,6 +106,15 @@ printScene xs = pictures xs
 reScale = scale 0.2 0.2
 
 guiMenu = createPictureMenu menuList
+
+--singleScene :: Hangman -> Picture
+singleScene hangman@(Hangman theWord correct guessed) = 
+    let underscore = foldl insertLetterinUnderscore (underscores (length theWord)) correct
+        randomword = "The Randomword: " ++ theWord
+        guessesLeft = "Guesses left: " ++ show (numbOfGuesses - length guessed)
+        badGuesses = "Bad Guesses: " ++ guessed
+    in  foldl (\l x -> (translate 0 (realToFrac $ (-30) * (length l)) $ reScale $ color black $ text x) : l) [] [underscore, randomword, guessesLeft, badGuesses]
+
 
 exitScene = [reScale $ text "Bye Bye"]
 
