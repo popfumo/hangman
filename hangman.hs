@@ -2,7 +2,10 @@ import System.IO
 import System.Random
 import Control.Monad
 import Graphics.Gloss
-
+import Graphics.Gloss.Data.ViewPort
+import Graphics.Gloss.Interface.IO.Game 
+import Graphics.Gloss.Data.Picture
+import Graphics.Gloss.Data.Color
 
 
 
@@ -19,10 +22,20 @@ data Hangman = Hangman String [(Int,Char)] [Char]
 type Guess = String
 type Word = String
 
+type World = (Float, Float)
+
+
 numbOfGuesses :: Int
 numbOfGuesses = 6
 
 filepath = "wordlist.txt"
+
+window :: Display
+window = InWindow "Hangman" (1000 , 700) (10,10)
+
+background :: Color
+background = white
+
 
 splash :: IO ()
 splash = do
@@ -40,6 +53,49 @@ splash = do
               \   __|__  J L                                            \n\
               \   |   |                                                 "
     putStrLn "Written by Erik Odhner, Edvard Axelman and Viktor Wallstén"
+
+hangmanGui
+
+guiMain :: IO ()
+guiMain = display window background $ printDrawings (guiMenu menuList)
+    --inputHandler
+
+guiTest = play window background 20 (0,0) 
+
+printDrawings xs = pictures xs
+
+reScale = scale 0.2 0.2
+
+guiMenu xs = foldl (\l x -> (translate 0 (realToFrac $ (-30) * (length l)) $ reScale $ color black $ text x) : l) [] xs
+
+menuList = ["1. Singleplayer","2. Multiplayer","3. Quit Game"]
+
+newText = text "TEST123"
+
+
+inputHandler :: Event -> World -> World
+inputHandler (EventKey (SpecialKey KeyUp) Down _ _) (x, y) = (x, y + 10)
+
+
+handleKeys (EventKey (Char char) _ _ _) 
+        | char == '1' = display window background newText
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 main :: IO ()
 main = do
