@@ -16,12 +16,12 @@ import Graphics.Gloss.Data.Color
 {-
     Hangman (The random Word) (The correct guessed letters with index as key) (The faulty guessed letters)
 -}
-data Hangman = Hangman String [(Int,Char)] [Char]
+data Hangman = None | Hangman String [(Int,Char)] [Char]
     deriving (Show)
 
-data World = World Scene Hangman
+data World = World Scene Hangman Guess
 
-data Scene = Menu | Single | Multi | Exit
+data Scene = Menu | Single | MultiInput | Multi | Win | Lose | Exit
 
 type Guess = String
 type Word = String
@@ -36,7 +36,7 @@ window :: Display
 window = InWindow "Hangman" (1000 , 700) (10,10)
 
 world :: World
-world = World Menu (Hangman "" [] [])
+world = World Menu (Hangman "" [] []) []
 
 background :: Color
 background = white
@@ -69,31 +69,49 @@ guiMain = play
     world 
     drawingFunc 
     eventHandler
-    updateFunc
+    updateFunc -- doesnt do anything
     
 
--- If scene == Single then check for letter instead
 eventHandler :: Event -> World -> World
-eventHandler event (World Menu _) = case event of
-        (EventKey (Char '1') Down _ _) -> World Single (Hangman "test" [] [])
-        (EventKey (Char '2') Down _ _) -> World Multi (Hangman "getMultiWord" [] [])
-        (EventKey (Char '3') Down _ _) -> World Exit (Hangman "test" [] [])
+eventHandler event (World Menu _ _) = case event of
+        (EventKey (Char '1') Down _ _) -> World Single (Hangman "test" [] []) []
+        (EventKey (Char '2') Down _ _) -> World MultiInput (Hangman "" [] []) []
+        (EventKey (Char '3') Down _ _) -> World Exit (Hangman "test" [] []) []
         _ -> world
-eventHandler (EventKey (Char input) Down _ _) (World Single hangman)
-    | validInput [input] hangman = if validGuess hangman [input]
-                            then let newHangman = insertCorrectGuess hangman [input]
-                                 in World Single newHangman
-                            else let newHangman = insertWrongGuess hangman [input]
-                                 in World Single newHangman
-    | otherwise = World Single hangman
-eventHandler event world@(World Single hangman) = world
+eventHandler (EventKey (Char input) Down _ _) (World MultiInput hangman guess) = World MultiInput hangman (guess ++ [input])
+eventHandler (EventKey (Char input) Down _ _) (World scene hangman guess) = World scene hangman (guess ++ [input])
+eventHandler (EventKey (SpecialKey KeyEnter) Down _ _) (World MultiInput hangman guess) = World Multi (Hangman guess [] []) []
+eventHandler (EventKey (SpecialKey KeyEnter) Down _ _) world = checkWholeWord world
+eventHandler event world = world
+
+
+
+checkWholeWord world@(World scene hangman@(Hangman word correct guessed) guess)
+    | length guess == length word = if guess == word
+                                        then World Win None []
+                                        else World scene (Hangman word correct (guessed ++ guess)) []
+    | otherwise = checkGuess world
+
+checkGuess (World scene hangman@(Hangman word correct guessed) guess)
+    | validInput guess hangman = if validGuess hangman guess
+                                    then let newHangman = insertCorrectGuess hangman guess
+                                         in checkWin (World scene newHangman [])
+                                    else let newHangman = insertWrongGuess hangman guess
+                                         in World scene newHangman []
+    | otherwise = World scene hangman []
+
+checkWin world@(World scene hangman@(Hangman word correct guessed) guess)
+    | correctGuess correct == word = World Win None []
+    | otherwise = world 
 
 
 drawingFunc :: World -> Picture
-drawingFunc (World scene hangman) = case scene of
+drawingFunc (World scene hangman _) = case scene of
         Menu    -> printScene (guiMenu)
         Single  -> printScene (hangScene hangman)
-        Multi   -> printScene (hangScene hangman) --printScene multiplayer
+        MultiInput -> printScene ([text "Enter a word"])
+        Multi   -> printScene (hangScene hangman)
+        Win     -> printScene ([text "You win"])
         Exit    -> printScene (exitScene)
         _       -> printScene (guiMenu)
 
@@ -111,17 +129,20 @@ hangScene hangman@(Hangman theWord correct guessed) =
         randomword = "The Randomword: " ++ theWord
         guessesLeft = "Guesses left: " ++ show (numbOfGuesses - length guessed)
         badGuesses = "Bad Guesses: " ++ guessed
-    in  foldl (\l x -> (translate 0 (realToFrac $ (-30) * (length l)) $ reScale $ color black $ text x) : l) [] [underscore, randomword, guessesLeft, badGuesses]
+        yourGuess = "Guess so far: " ++ correctGuess correct
+        tree = drawStick hangman 
+    in  tree ++ foldl (\l x -> (translate 0 (realToFrac $ (-30) * (length l)) $ reScale $ color black $ text x) : l) [] [underscore, randomword, guessesLeft, badGuesses, yourGuess]
 
-drawStick gLeft =
+drawStick hangman@(Hangman theWord correct guessed) =
     let gLeft = (numbOfGuesses - length guessed)
     in case gLeft of 
-        5 -> display window background $ printScene drawing1
-        4 -> display window background $ printScene drawing2
-        3 -> display window background $ printScene drawing3
-        2 -> display window background $ printScene drawing4
-        1 -> display window background $ printScene drawing5
-        0 -> display window background $ printScene drawing6
+        6 -> []
+        5 -> drawing1
+        4 -> drawing2
+        3 -> drawing3
+        2 -> drawing4
+        1 -> drawing5
+        0 -> drawing6
 
 exitScene = [reScale $ text "Bye Bye"]
 
@@ -134,24 +155,6 @@ newText = text "TEST123"
 
 updateFunc :: Float -> World -> World
 updateFunc _ w = w
-  where
-    towardCenter :: Float -> Float
-    towardCenter c = if abs c < 0.25
-      then 0
-      else if c > 0
-        then c - 1.25
-        else c + 1.25
-
-
-
-
-
-inputHandler :: Event -> World -> World
-inputHandler (EventKey (SpecialKey KeyUp) Down _ _) w = undefined
-inputHandler _ w = w
-
-
-
 
 
 
@@ -249,7 +252,7 @@ gameAux hangman@(Hangman theWord correct guessed) = do
                                 then do
                                     win hangman
                                 else do
-                                    let newHangman = Hangman theWord correct newGuess
+                                    let newHangman = Hangman theWord correct (guessed ++ newGuess)
                                     gameAux newHangman
                         else do    
                             if validGuess hangman newGuess
