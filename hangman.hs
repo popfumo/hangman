@@ -76,8 +76,8 @@ guiMain = play
 eventHandler :: Event -> World -> World
 eventHandler event (World Menu _) = case event of
         (EventKey (Char '1') Down _ _) -> World Single (Hangman "test" [] [])
-        --2 -> Multi
-        (EventKey (Char '3') Down _ _) -> World Exit (Hangman "" [] [])
+        (EventKey (Char '2') Down _ _) -> World Multi (Hangman "getMultiWord" [] [])
+        (EventKey (Char '3') Down _ _) -> World Exit (Hangman "test" [] [])
         _ -> world
 eventHandler (EventKey (Char input) Down _ _) (World Single hangman)
     | validInput [input] hangman = if validGuess hangman [input]
@@ -89,15 +89,13 @@ eventHandler (EventKey (Char input) Down _ _) (World Single hangman)
 eventHandler event world@(World Single hangman) = world
 
 
-
 drawingFunc :: World -> Picture
 drawingFunc (World scene hangman) = case scene of
         Menu    -> printScene (guiMenu)
-        Single  -> printScene (singleScene hangman)
-        Multi   -> undefined--printScene multiplayer
+        Single  -> printScene (hangScene hangman)
+        Multi   -> printScene (hangScene hangman) --printScene multiplayer
         Exit    -> printScene (exitScene)
         _       -> printScene (guiMenu)
-
 
 
 -- printScene (guiMenu)
@@ -107,17 +105,25 @@ reScale = scale 0.2 0.2
 
 guiMenu = createPictureMenu menuList
 
---singleScene :: Hangman -> Picture
-singleScene hangman@(Hangman theWord correct guessed) = 
+--hangScene :: Hangman -> Picture
+hangScene hangman@(Hangman theWord correct guessed) = 
     let underscore = foldl insertLetterinUnderscore (underscores (length theWord)) correct
         randomword = "The Randomword: " ++ theWord
         guessesLeft = "Guesses left: " ++ show (numbOfGuesses - length guessed)
         badGuesses = "Bad Guesses: " ++ guessed
     in  foldl (\l x -> (translate 0 (realToFrac $ (-30) * (length l)) $ reScale $ color black $ text x) : l) [] [underscore, randomword, guessesLeft, badGuesses]
 
+drawStick gLeft =
+    let gLeft = (numbOfGuesses - length guessed)
+    in case gLeft of 
+        5 -> display window background $ printScene drawing1
+        4 -> display window background $ printScene drawing2
+        3 -> display window background $ printScene drawing3
+        2 -> display window background $ printScene drawing4
+        1 -> display window background $ printScene drawing5
+        0 -> display window background $ printScene drawing6
 
 exitScene = [reScale $ text "Bye Bye"]
-
 
 createPictureMenu xs = foldl (\l x -> (translate 0 (realToFrac $ (-30) * (length l)) $ reScale $ color black $ text x) : l) [] xs
 
@@ -149,9 +155,22 @@ inputHandler _ w = w
 
 
 
+drawing1 = [translate (-20) (-100) $ color green $ circleSolid 100,
+            translate (-20) (-150) $ color white $ rectangleSolid 200 100]
 
+drawing2 = drawing1 ++ [translate (-20) (100) $ color black $ rectangleSolid 10 200 ]
 
+drawing3 = drawing2 ++ [translate (15) (200) $ color black $ rectangleSolid 75 10 ]
 
+drawing4 = drawing3 ++ [translate (50) (180) $ color black $ rectangleSolid 2 30,
+                        translate (50) (140) $ color black $ circle 20]
+
+drawing5 = drawing4 ++ [translate (50) (97) $ color black $ rectangleSolid 1 50,
+                        translate (110) (46) $ color black $ line [(-30, -30), (-60, 30)],
+                        translate (-10) (46) $ color black $ line [(30, -30), (60, 30)]]
+
+drawing6 = drawing5 ++ [translate (110) (110) $ color black $ line [(-30, -30), (-60, 0)], 
+                        translate (-10) (110) $ color black $ line [(30, -30), (60, 0)]]
 
 
 
