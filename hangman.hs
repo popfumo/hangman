@@ -6,8 +6,7 @@ import Graphics.Gloss.Data.ViewPort
 import Graphics.Gloss.Interface.IO.Game 
 import Graphics.Gloss.Data.Picture
 import Graphics.Gloss.Data.Color
-
-
+import System.Exit
 
 {-   -- TODO --
 
@@ -16,16 +15,21 @@ import Graphics.Gloss.Data.Color
 {-
     Hangman (The random Word) (The correct guessed letters with index as key) (The faulty guessed letters)
 -}
+
+{- Hangman is based on Strings, list with a tuple that contains a pair with one int and one char 
+and one list that contains one or more chars. The string denotes the random word that user is
+guessing on. The list with the tuple that contains an inte and a char denotes how 
+INVARIANT: The list cant be void, the Int must be a positive value.  
+    -}
 data Hangman = None | Hangman String [(Int,Char)] [Char]
     deriving (Show)
 
 data World = World Scene Hangman Guess
 
-data Scene = Menu | Single | MultiInput | Multi | Win | Lose | Exit
+data Scene = Menu | Single | MultiInput | Multi | BadInput Scene | Win | Lose | Exit
 
 type Guess = String
 type Word = String
-
 
 numbOfGuesses :: Int
 numbOfGuesses = 6
@@ -35,8 +39,8 @@ filepath = "wordlist.txt"
 window :: Display
 window = InWindow "Hangman" (1000 , 700) (10,10)
 
-world :: World
-world = World Menu (Hangman "" [] []) []
+newWorld :: World
+newWorld = World Menu None []
 
 background :: Color
 background = white
@@ -59,79 +63,112 @@ splash = do
               \   |   |                                                 "
     putStrLn "Written by Erik Odhner, Edvard Axelman and Viktor Wallstén"
 
---hangmanGui :: Display -> Color -> (Picture -> Hangman -> Picture) -> IO ()
-
---guiMain :: IO ()
-guiMain = play 
+guiMain = playIO 
     window 
     background 
-    20
-    world 
-    drawingFunc 
-    eventHandler
-    updateFunc -- doesnt do anything
-    
+    10
+    newWorld 
+    drawingSceneIO 
+    eventHandlerIO
+    updateFuncIO
 
-eventHandler :: Event -> World -> World
-eventHandler event (World Menu _ _) = case event of
-        (EventKey (Char '1') Down _ _) -> World Single (Hangman "test" [] []) []
-        (EventKey (Char '2') Down _ _) -> World MultiInput (Hangman "" [] []) []
-        (EventKey (Char '3') Down _ _) -> World Exit (Hangman "test" [] []) []
-        _ -> world
-eventHandler (EventKey (Char input) Down _ _) (World MultiInput hangman guess) = World MultiInput hangman (guess ++ [input])
-eventHandler (EventKey (Char input) Down _ _) (World scene hangman guess) = World scene hangman (guess ++ [input])
-eventHandler (EventKey (SpecialKey KeyEnter) Down _ _) (World MultiInput hangman guess) = World Multi (Hangman guess [] []) []
-eventHandler (EventKey (SpecialKey KeyEnter) Down _ _) world = checkWholeWord world
-eventHandler event world = world
+eventHandlerIO :: Event -> World -> IO World
+eventHandlerIO event world@(World Menu _ _) = do 
+    theWord <- randomWord   -- create randomword
+    case event of
+        (EventKey (Char '1') Down _ _) -> return $ World Single (Hangman theWord [] []) []
+        (EventKey (Char '2') Down _ _) -> return $ World MultiInput (Hangman "" [] []) []
+        (EventKey (Char '3') Down _ _) -> return $ World Exit None []
+        _ -> return world
+eventHandlerIO (EventKey (SpecialKey KeyDelete) Down _ _) (World scene hangman guess) = do return $ World scene hangman (take (length guess - 1) guess)
+eventHandlerIO (EventKey (SpecialKey KeyBackspace) Down _ _) (World scene hangman guess) = do return $ World scene hangman (take (length guess -1) guess)
+eventHandlerIO (EventKey (Char input) Down _ _) (World scene hangman guess) = do return $ World scene hangman (guess ++ [input])
+eventHandlerIO (EventKey (SpecialKey KeyEnter) Down _ _) (World MultiInput hangman guess) = do return $ World Multi (Hangman guess [] []) []
+eventHandlerIO (EventKey (SpecialKey KeyEnter) Down _ _) (World Win _ option) = do return (replay option)
+eventHandlerIO (EventKey (SpecialKey KeyEnter) Down _ _) (World Lose _ option) = do return (replay option)
+eventHandlerIO (EventKey (SpecialKey KeyEnter) Down _ _) world = do return $ checkWholeWord world
+eventHandlerIO event world = do return world
 
-
-
+checkWholeWord :: World -> World
 checkWholeWord world@(World scene hangman@(Hangman word correct guessed) guess)
     | length guess == length word = if guess == word
-                                        then World Win None []
+                                        then World Win hangman []
                                         else World scene (Hangman word correct (guessed ++ guess)) []
     | otherwise = checkGuess world
 
+checkGuess :: World -> World
 checkGuess (World scene hangman@(Hangman word correct guessed) guess)
     | validInput guess hangman = if validGuess hangman guess
                                     then let newHangman = insertCorrectGuess hangman guess
                                          in checkWin (World scene newHangman [])
                                     else let newHangman = insertWrongGuess hangman guess
-                                         in World scene newHangman []
-    | otherwise = World scene hangman []
+                                         in checkLose (World scene newHangman [])
+    | otherwise = World (BadInput scene) hangman []
 
+checkWin :: World -> World
 checkWin world@(World scene hangman@(Hangman word correct guessed) guess)
-    | correctGuess correct == word = World Win None []
+    | correctGuess correct == word = World Win hangman []
     | otherwise = world 
 
+checkLose :: World -> World
+checkLose world@(World scene hangman@(Hangman word correct guessed) guess)
+    | length guessed == numbOfGuesses = World Lose hangman []
+    | otherwise = world
 
-drawingFunc :: World -> Picture
-drawingFunc (World scene hangman _) = case scene of
-        Menu    -> printScene (guiMenu)
-        Single  -> printScene (hangScene hangman)
-        MultiInput -> printScene ([text "Enter a word"])
-        Multi   -> printScene (hangScene hangman)
-        Win     -> printScene ([text "You win"])
-        Exit    -> printScene (exitScene)
-        _       -> printScene (guiMenu)
+replay :: String -> World
+replay [input]
+    | input == 'y' = newWorld
+    | otherwise    = World Exit None []
 
 
--- printScene (guiMenu)
-printScene xs = pictures xs
+
+drawingSceneIO :: World -> IO Picture
+drawingSceneIO (World scene hangman guess) = do 
+            case scene of
+                Menu    -> printMenu guiMenu
+                Single  -> printScene (hangScene hangman guess)
+                MultiInput -> printScene (multiInputScene guess)
+                Multi   -> printScene (hangScene hangman guess)
+                (BadInput scene) -> printScene ([color red $ rectangleSolid 2000 2000, hangtext (0,0) "BAD INPUT"])
+                Lose    -> printScene (loseScene hangman)
+                Win     -> printScene (winScene hangman)
+                Exit    -> exitSuccess
+
+updateFuncIO :: Float -> World -> IO World
+updateFuncIO _ (World (BadInput scene) hangman guess) = do 
+    return (World scene hangman guess)
+updateFuncIO _ w = do
+    return w
+
+printMenu xs = do
+    image <- loadBMP "hangman.bmp"
+    let newImage = translate 0 300 image
+        withText = [newImage] ++ xs
+        withTree = drawing6 ++ withText
+    return (pictures withTree)
+
+printScene :: [Picture] -> IO Picture
+printScene xs = do
+    return (pictures xs)
+
+hangtext (x,y) s = centerText (x,y) s $ reScale $ text s
+
+centerText (x,y) s = translate (x-(halfSize s)) (y)
+
+halfSize :: String -> Float
+halfSize s = realToFrac $ (length s) `div` 2 * 15
 
 reScale = scale 0.2 0.2
 
-guiMenu = createPictureMenu menuList
 
---hangScene :: Hangman -> Picture
-hangScene hangman@(Hangman theWord correct guessed) = 
+hangScene hangman@(Hangman theWord correct guessed) guess = 
     let underscore = foldl insertLetterinUnderscore (underscores (length theWord)) correct
-        randomword = "The Randomword: " ++ theWord
+        --randomword = "The Randomword: " ++ theWord
         guessesLeft = "Guesses left: " ++ show (numbOfGuesses - length guessed)
-        badGuesses = "Bad Guesses: " ++ guessed
-        yourGuess = "Guess so far: " ++ correctGuess correct
+        wrongGuesses = "Wrong Guesses: " ++ guessed
+        --yourGuess = "Guess so far: " ++ correctGuess correct
         tree = drawStick hangman 
-    in  tree ++ foldl (\l x -> (translate 0 (realToFrac $ (-30) * (length l)) $ reScale $ color black $ text x) : l) [] [underscore, randomword, guessesLeft, badGuesses, yourGuess]
+    in  tree ++ foldl (\l x -> (translate (-150) (realToFrac $ (-40) * (length l)-150) $ reScale $ color black $ text x) : l) [] [underscore, guessesLeft, wrongGuesses, guess]
 
 drawStick hangman@(Hangman theWord correct guessed) =
     let gLeft = (numbOfGuesses - length guessed)
@@ -143,20 +180,28 @@ drawStick hangman@(Hangman theWord correct guessed) =
         2 -> drawing4
         1 -> drawing5
         0 -> drawing6
+        _ -> []
 
-exitScene = [reScale $ text "Bye Bye"]
+exitScene = do exitSuccess
 
-createPictureMenu xs = foldl (\l x -> (translate 0 (realToFrac $ (-30) * (length l)) $ reScale $ color black $ text x) : l) [] xs
+
+guiMenu = createPictureMenu menuList
+
+createPictureMenu xs = foldl (\l x -> (translate (-100) (realToFrac $ (-40) * (length l)-150) $ reScale $ color black $ text x) : l) [] xs
 
 menuList = ["1. Singleplayer","2. Multiplayer","3. Quit Game"]
 
-newText = text "TEST123"
+
+multiInputScene guess = [hangtext (0,0) "Enter a word", hangtext (0,-40) guess]
 
 
-updateFunc :: Float -> World -> World
-updateFunc _ w = w
+loseScene None = []
+loseScene hangman@(Hangman word correct guessed) = drawing6 ++ [(hangtext (0,-180) $ "Correct word was: " ++ word), (hangtext (0,-140) "You lost"), replayScene]
 
+winScene None = []
+winScene hangman@(Hangman word correct guessed) = (drawStick hangman) ++ [(hangtext (0,-150) "You Won"), replayScene] 
 
+replayScene = hangtext (0,-220) "Do you want to play again? (y/n) "
 
 drawing1 = [translate (-20) (-100) $ color green $ circleSolid 100,
             translate (-20) (-150) $ color white $ rectangleSolid 200 100]
@@ -176,18 +221,19 @@ drawing6 = drawing5 ++ [translate (110) (110) $ color black $ line [(-30, -30), 
                         translate (-10) (110) $ color black $ line [(30, -30), (60, 0)]]
 
 
-
-
-
-
-
-
-
+{- Main IO 
+Calls on the GUI function and the menu function. 
+-}
 main :: IO ()
 main = do
     splash
     menu
 
+{- Menu IO  
+
+SIDE EFFECTS: Prints out the game modes as strings and calls on different
+depending on different user input. 
+-}
 menu :: IO ()
 menu = do
     putStrLn "--------------------"
@@ -202,9 +248,18 @@ menu = do
         "3" -> exit
         _   -> exit
 
+{- Exit IO
+
+SIDE EFFECT: Prints out the string "exited" on the terminal 
+-}
 exit :: IO ()
 exit = do putStrLn "exited"
 
+
+{- randomWord IO 
+
+SIDE EFFECT: Returns a random IO string from the text file. 
+-}
 randomWord :: IO String
 randomWord = do
         handle <- openFile filepath ReadMode -- Import wordlist
@@ -214,10 +269,18 @@ randomWord = do
         ranInt <- randomRIO (1,upper-1)      -- Returns a random IO Int
         hClose handle                        -- closes handle
         let word = list !! ranInt            -- a random word from the list
-            removedR = take (length word - 1) word -- removes the "\r" from the end of the word. For Linux OS only. 
-        return removedR                     -- Returns a random word from the list with the help of the random number we get.
+            removedR = removeR word          -- removes the "\r" from the end of the word. Linux problem ...
+        return (removedR)                    -- Returns a random word from the list with the help of the random number we get.
 
+removeR [x]
+    | [x] == "\r" = []
+    | otherwise   = [x]
+removeR (x:xs) = x : removeR xs
 
+{- singleGame IO 
+
+SIDE EFFECT: Calls on the gameAux function with the predefined hangman as the argument. 
+-}
 singleGame :: IO ()
 singleGame =  do
     theWord <- randomWord
@@ -226,7 +289,12 @@ singleGame =  do
     putStrLn ("Guess a letter or a string with " ++ show lengthWord ++ " letters\n")
     gameAux hangman
 
+{- gameAux IO 
+Main body function of the hangman game. Checks if the user input is A): A valid guess and B): A correct guess. 
+Depending on the outcomes of A and B, the gameAux will call on different functions. 
 
+SIDE EFFECT: Calls on the lose or win function. 
+-}
 gameAux :: Hangman -> IO ()
 gameAux hangman@(Hangman theWord correct guessed) = do
     if theWord == correctGuess correct -- check if you won
@@ -264,6 +332,11 @@ gameAux hangman@(Hangman theWord correct guessed) = do
                                     let newHangman = insertWrongGuess hangman newGuess
                                     gameAux newHangman
 
+
+{- getGuess IO 
+Takes a user input as a guess and 
+SIDE EFFECT: 
+-}
 getGuess :: Hangman -> IO String
 getGuess hangman = do
     newG <- getLine
@@ -417,3 +490,4 @@ treePrint 5 = do
 
 treePrint i = do
     putStrLn ""
+
