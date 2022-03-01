@@ -1,16 +1,16 @@
 import System.IO
+import System.Exit
 import System.Random
+
 import Control.Monad
+
 import Graphics.Gloss
 import Graphics.Gloss.Data.ViewPort
 import Graphics.Gloss.Interface.IO.Game 
 import Graphics.Gloss.Data.Picture
 import Graphics.Gloss.Data.Color
-import System.Exit
 
-{-   -- TODO --
-
--}
+import Test.HUnit
 
 {-
     Hangman (The random Word) (The correct guessed letters with index as key) (The faulty guessed letters)
@@ -61,7 +61,9 @@ splash = do
               \     |    -|-                                            \n\
               \   __|__  J L                                            \n\
               \   |   |                                                 "
-    putStrLn "Written by Erik Odhner, Edvard Axelman and Viktor Wallstén"
+    putStrLn "----------------------------------------------"
+    putStrLn "Erik Odhner | Edvard Axelman | Viktor Wallstén"
+    putStrLn "----------------------------------------------"
 
 guiMain = playIO 
     window 
@@ -227,7 +229,19 @@ Calls on the GUI function and the menu function.
 main :: IO ()
 main = do
     splash
-    menu
+    chooseInterface
+
+chooseInterface :: IO ()
+chooseInterface = do
+    putStrLn ""
+    putStrLn "1. Graphical Interface"
+    putStrLn "2. Terminal  Interface"
+    putStrLn ""
+    option <- getLine
+    case option of
+        "1" -> do guiMain
+        "2" -> do menu
+        _   -> exit
 
 {- Menu IO  
 
@@ -309,10 +323,7 @@ gameAux hangman@(Hangman theWord correct guessed) = do
                         guessesLeft = numbOfGuesses - length guessed
                     tree (guessesLeft)
                     putStrLn (underscore ++ "\n") -- print the current guessed word
-                    --putStrLn ("the randomWord: " ++ theWord)
-                    --putStrLn ("your guess so far: " ++ correctGuess correct)
                     putStrLn ("Bad guesses: " ++ guessed)
-                    --putStrLn ("Guesses left: " ++ show guessesLeft)
                     newGuess <- getGuess hangman
                     if length newGuess == length theWord
                         then do
@@ -415,6 +426,8 @@ insertCorrectGuess (Hangman w k g) [c] = Hangman w (insert) g
 
 h1 = Hangman "test" [(1,'e')] "l"
 
+h2 = Hangman "hello" [(0,'h'),(4,'o')] "g"
+
 {-  insertCinK ys xs (i,c)
     inserts (i,c) in xs according to the index i
     EXAMPLE: insertCinK [] [(0,'h'),(2,'j')] (1,'e') == [(0,'h'),(1,'e'),(2,'j')]
@@ -427,7 +440,7 @@ insertCinK ys ((xi,xv):xs) (i,c)
 
 
 {-  getIndex xs c acc
-    get the index of char c in list xs
+    get the index/es of char c in string xs
 
 -}
 getIndex :: String -> Char -> Int -> [Int]
@@ -491,3 +504,27 @@ treePrint 5 = do
 treePrint i = do
     putStrLn ""
 
+
+--------------------------------------------------------------------------------
+-- Test Cases
+--------------------------------------------------------------------------------
+
+-- validInput
+testVI1 = TestCase $ assertEqual "validInput" True (validInput "horse" h2)
+testVI2 = TestCase $ assertEqual "validInput" False (validInput "" h2)
+testVI3 = TestCase $ assertEqual "validInput" False (validInput "it" h2)
+
+-- validGuess
+testVG1 = TestCase $ assertEqual "validGuess" True (validGuess h2 "e")
+testVG2 = TestCase $ assertEqual "validGuess" False (validGuess h2 "k")
+
+-- alreadyGuessed
+
+
+-- insertWrongGuess
+
+
+-- insertCorrectGuess
+
+
+runAllTests = runTestTT $ TestList [testVI1, testVI2, testVI3, testVG1, testVG2]
