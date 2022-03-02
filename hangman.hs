@@ -21,19 +21,28 @@ and one list that contains one or more chars. The string denotes the random word
 guessing on. The list with the tuple that contains an inte and a char denotes how 
 INVARIANT: The list cant be void, the Int must be a positive value.  
     -}
-data Hangman = None | Hangman String [(Int,Char)] [Char]
-    deriving (Show)
+data Hangman = None | Hangman RandomWord CorrectGuessed WrongGuessed deriving (Show)
 
-data World = World Scene Hangman Guess
+data World = World Scene Hangman Input
 
 data Scene = Menu | Single | MultiInput | Multi | BadInput Scene | Win | Lose | Exit
 
-type Guess = String
-type Word = String
+type RandomWord = String
+type WrongGuessed = [Char]
+type CorrectGuessed = [(Int,Char)]
+
+type Input = [Char]
+
+type Coordinate = (Float,Float)
+
+--------------------------------------------------------------------------------
+-- Global Variables
+--------------------------------------------------------------------------------
 
 numbOfGuesses :: Int
 numbOfGuesses = 6
 
+filepath :: String
 filepath = "wordlist.txt"
 
 window :: Display
@@ -44,7 +53,6 @@ newWorld = World Menu None []
 
 background :: Color
 background = white
-
 
 splash :: IO ()
 splash = do
@@ -65,15 +73,61 @@ splash = do
     putStrLn "Erik Odhner | Edvard Axelman | Viktor Wallstén"
     putStrLn "----------------------------------------------"
 
+--------------------------------------------------------------------------------
+-- Main functions
+--------------------------------------------------------------------------------
+
+{- Main IO 
+Calls on the GUI function and the menu function. 
+-}
+main :: IO ()
+main = do
+    splash
+    chooseInterface
+
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
+chooseInterface :: IO ()
+chooseInterface = do
+    putStrLn ""
+    putStrLn "1. Graphical Interface"
+    putStrLn "2. Terminal  Interface"
+    putStrLn ""
+    option <- getLine
+    case option of
+        "1" -> do guiMain
+        "2" -> do terminalMenu
+        _   -> exit
+
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
+guiMain :: IO ()
 guiMain = playIO 
     window 
     background 
     10
-    newWorld 
-    drawingSceneIO 
-    eventHandlerIO
-    updateFuncIO
+    newWorld
+    drawingSceneIO -- draws the scene
+    eventHandlerIO -- interpreters the input 
+    updateSceneIO  -- catches BadInput and returns previous scene
 
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
 eventHandlerIO :: Event -> World -> IO World
 eventHandlerIO event world@(World Menu _ _) = do 
     theWord <- randomWord   -- create randomword
@@ -91,6 +145,13 @@ eventHandlerIO (EventKey (SpecialKey KeyEnter) Down _ _) (World Lose _ option) =
 eventHandlerIO (EventKey (SpecialKey KeyEnter) Down _ _) world = do return $ checkWholeWord world
 eventHandlerIO event world = do return world
 
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
 checkWholeWord :: World -> World
 checkWholeWord world@(World scene hangman@(Hangman word correct guessed) guess)
     | length guess == length word = if guess == word
@@ -98,6 +159,13 @@ checkWholeWord world@(World scene hangman@(Hangman word correct guessed) guess)
                                         else World scene (Hangman word correct (guessed ++ guess)) []
     | otherwise = checkGuess world
 
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
 checkGuess :: World -> World
 checkGuess (World scene hangman@(Hangman word correct guessed) guess)
     | validInput guess hangman = if validGuess hangman guess
@@ -107,23 +175,49 @@ checkGuess (World scene hangman@(Hangman word correct guessed) guess)
                                          in checkLose (World scene newHangman [])
     | otherwise = World (BadInput scene) hangman []
 
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
 checkWin :: World -> World
 checkWin world@(World scene hangman@(Hangman word correct guessed) guess)
     | correctGuess correct == word = World Win hangman []
     | otherwise = world 
 
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
 checkLose :: World -> World
 checkLose world@(World scene hangman@(Hangman word correct guessed) guess)
     | length guessed == numbOfGuesses = World Lose hangman []
     | otherwise = world
 
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
 replay :: String -> World
 replay [input]
     | input == 'y' = newWorld
     | otherwise    = World Exit None []
 
-
-
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
 drawingSceneIO :: World -> IO Picture
 drawingSceneIO (World scene hangman guess) = do 
             case scene of
@@ -131,17 +225,19 @@ drawingSceneIO (World scene hangman guess) = do
                 Single  -> printScene (hangScene hangman guess)
                 MultiInput -> printScene (multiInputScene guess)
                 Multi   -> printScene (hangScene hangman guess)
-                (BadInput scene) -> printScene ([color red $ rectangleSolid 2000 2000, hangtext (0,0) "BAD INPUT"])
+                (BadInput scene) -> printScene badInputScene
                 Lose    -> printScene (loseScene hangman)
                 Win     -> printScene (winScene hangman)
                 Exit    -> exitSuccess
 
-updateFuncIO :: Float -> World -> IO World
-updateFuncIO _ (World (BadInput scene) hangman guess) = do 
-    return (World scene hangman guess)
-updateFuncIO _ w = do
-    return w
-
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
+printMenu :: [Picture] -> IO Picture
 printMenu xs = do
     image <- loadBMP "hangman.bmp"
     let newImage = translate 0 300 image
@@ -149,107 +245,91 @@ printMenu xs = do
         withTree = drawing6 ++ withText
     return (pictures withTree)
 
+guiMenu :: [Picture]
+guiMenu = createPictureMenu menuList
+
+createPictureMenu :: [String] -> [Picture]
+createPictureMenu xs = foldl (\l x -> (translate (-100) (realToFrac $ (-40) * (length l)-150) $ reScale $ color black $ text x) : l) [] xs
+
+menuList :: [String]
+menuList = ["1. Singleplayer","2. Multiplayer","3. Quit Game"]
+
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
 printScene :: [Picture] -> IO Picture
 printScene xs = do
     return (pictures xs)
 
+hangtext :: Coordinate -> String -> Picture
 hangtext (x,y) s = centerText (x,y) s $ reScale $ text s
 
+centerText :: Coordinate -> String -> Picture -> Picture
 centerText (x,y) s = translate (x-(halfSize s)) (y)
 
 halfSize :: String -> Float
 halfSize s = realToFrac $ (length s) `div` 2 * 15
 
+reScale :: Picture -> Picture
 reScale = scale 0.2 0.2
 
-
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
+hangScene :: Hangman -> Input -> [Picture]
 hangScene hangman@(Hangman theWord correct guessed) guess = 
     let underscore = foldl insertLetterinUnderscore (underscores (length theWord)) correct
-        --randomword = "The Randomword: " ++ theWord
         guessesLeft = "Guesses left: " ++ show (numbOfGuesses - length guessed)
         wrongGuesses = "Wrong Guesses: " ++ guessed
-        --yourGuess = "Guess so far: " ++ correctGuess correct
         tree = drawStick hangman 
     in  tree ++ foldl (\l x -> (translate (-150) (realToFrac $ (-40) * (length l)-150) $ reScale $ color black $ text x) : l) [] [underscore, guessesLeft, wrongGuesses, guess]
 
-drawStick hangman@(Hangman theWord correct guessed) =
-    let gLeft = (numbOfGuesses - length guessed)
-    in case gLeft of 
-        6 -> []
-        5 -> drawing1
-        4 -> drawing2
-        3 -> drawing3
-        2 -> drawing4
-        1 -> drawing5
-        0 -> drawing6
-        _ -> []
-
-exitScene = do exitSuccess
-
-
-guiMenu = createPictureMenu menuList
-
-createPictureMenu xs = foldl (\l x -> (translate (-100) (realToFrac $ (-40) * (length l)-150) $ reScale $ color black $ text x) : l) [] xs
-
-menuList = ["1. Singleplayer","2. Multiplayer","3. Quit Game"]
-
-
+multiInputScene :: Input -> [Picture]
 multiInputScene guess = [hangtext (0,0) "Enter a word", hangtext (0,-40) guess]
 
+badInputScene :: [Picture]
+badInputScene = [color red $ rectangleSolid 2000 2000, hangtext (0,0) "BAD INPUT"]
 
-loseScene None = []
+loseScene :: Hangman -> [Picture]
 loseScene hangman@(Hangman word correct guessed) = drawing6 ++ [(hangtext (0,-180) $ "Correct word was: " ++ word), (hangtext (0,-140) "You lost"), replayScene]
 
-winScene None = []
+winScene :: Hangman -> [Picture]
 winScene hangman@(Hangman word correct guessed) = (drawStick hangman) ++ [(hangtext (0,-150) "You Won"), replayScene] 
 
+replayScene :: Picture
 replayScene = hangtext (0,-220) "Do you want to play again? (y/n) "
 
-drawing1 = [translate (-20) (-100) $ color green $ circleSolid 100,
-            translate (-20) (-150) $ color white $ rectangleSolid 200 100]
-
-drawing2 = drawing1 ++ [translate (-20) (100) $ color black $ rectangleSolid 10 200 ]
-
-drawing3 = drawing2 ++ [translate (15) (200) $ color black $ rectangleSolid 75 10 ]
-
-drawing4 = drawing3 ++ [translate (50) (180) $ color black $ rectangleSolid 2 30,
-                        translate (50) (140) $ color black $ circle 20]
-
-drawing5 = drawing4 ++ [translate (50) (97) $ color black $ rectangleSolid 1 50,
-                        translate (110) (46) $ color black $ line [(-30, -30), (-60, 30)],
-                        translate (-10) (46) $ color black $ line [(30, -30), (60, 30)]]
-
-drawing6 = drawing5 ++ [translate (110) (110) $ color black $ line [(-30, -30), (-60, 0)], 
-                        translate (-10) (110) $ color black $ line [(30, -30), (60, 0)]]
-
-
-{- Main IO 
-Calls on the GUI function and the menu function. 
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
 -}
-main :: IO ()
-main = do
-    splash
-    chooseInterface
+updateSceneIO :: Float -> World -> IO World
+updateSceneIO _ (World (BadInput scene) hangman guess) = do 
+    return (World scene hangman guess)
+updateSceneIO _ w = do
+    return w
 
-chooseInterface :: IO ()
-chooseInterface = do
-    putStrLn ""
-    putStrLn "1. Graphical Interface"
-    putStrLn "2. Terminal  Interface"
-    putStrLn ""
-    option <- getLine
-    case option of
-        "1" -> do guiMain
-        "2" -> do menu
-        _   -> exit
-
-{- Menu IO  
-
-SIDE EFFECTS: Prints out the game modes as strings and calls on different
-depending on different user input. 
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   Prints out the game modes as strings and calls on different
+                    depending on different user input. 
+    EXAMPLES:       
 -}
-menu :: IO ()
-menu = do
+terminalMenu :: IO ()
+terminalMenu = do
     putStrLn "--------------------"
     putStrLn "1. Singleplayer"
     putStrLn "2. Multiplayer"
@@ -262,17 +342,22 @@ menu = do
         "3" -> exit
         _   -> exit
 
-{- Exit IO
-
-SIDE EFFECT: Prints out the string "exited" on the terminal 
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   Prints out the string "Shutting down the game..." on the terminal
+    EXAMPLES:       
 -}
 exit :: IO ()
-exit = do putStrLn "exited"
+exit = do putStrLn "Shutting down the game..."
 
-
-{- randomWord IO 
-
-SIDE EFFECT: Returns a random IO string from the text file. 
+{-  randomWord
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   Returns a random IO string from the text file.
+    EXAMPLES:       
 -}
 randomWord :: IO String
 randomWord = do
@@ -455,6 +540,43 @@ createTuples [x] c    = [(x,c)]
 createTuples (x:xs) c = (x,c) : createTuples xs c
 
 
+--------------------------------------------------------------------------------
+-- Hangman Drawings
+--------------------------------------------------------------------------------
+
+-- GUI Hangman drawing
+
+drawStick hangman@(Hangman theWord correct guessed) =
+    let gLeft = (numbOfGuesses - length guessed)
+    in case gLeft of 
+        6 -> []
+        5 -> drawing1
+        4 -> drawing2
+        3 -> drawing3
+        2 -> drawing4
+        1 -> drawing5
+        0 -> drawing6
+        _ -> []
+
+drawing1 = [translate (-20) (-100) $ color green $ circleSolid 100,
+            translate (-20) (-150) $ color white $ rectangleSolid 200 100]
+
+drawing2 = drawing1 ++ [translate (-20) (100) $ color black $ rectangleSolid 10 200 ]
+
+drawing3 = drawing2 ++ [translate (15) (200) $ color black $ rectangleSolid 75 10 ]
+
+drawing4 = drawing3 ++ [translate (50) (180) $ color black $ rectangleSolid 2 30,
+                        translate (50) (140) $ color black $ circle 20]
+
+drawing5 = drawing4 ++ [translate (50) (97) $ color black $ rectangleSolid 1 50,
+                        translate (110) (46) $ color black $ line [(-30, -30), (-60, 30)],
+                        translate (-10) (46) $ color black $ line [(30, -30), (60, 30)]]
+
+drawing6 = drawing5 ++ [translate (110) (110) $ color black $ line [(-30, -30), (-60, 0)], 
+                        translate (-10) (110) $ color black $ line [(30, -30), (60, 0)]]
+
+
+-- Terminal Hangman drawing
 
 tree i = treePrint i   
 
