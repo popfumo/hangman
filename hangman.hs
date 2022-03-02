@@ -12,15 +12,11 @@ import Graphics.Gloss.Data.Color
 
 import Test.HUnit
 
-{-
-    Hangman (The random Word) (The correct guessed letters with index as key) (The faulty guessed letters)
+{-  Hangman is based on Strings, list with a tuple that contains a pair with one int and one char 
+        and one list that contains one or more chars. The string denotes the random word that user is
+        guessing on. The list with the tuple that contains an inte and a char denotes how 
+    INVARIANT: The list cant be void, the Int must be a positive value.  
 -}
-
-{- Hangman is based on Strings, list with a tuple that contains a pair with one int and one char 
-and one list that contains one or more chars. The string denotes the random word that user is
-guessing on. The list with the tuple that contains an inte and a char denotes how 
-INVARIANT: The list cant be void, the Int must be a positive value.  
-    -}
 data Hangman = None | Hangman RandomWord CorrectGuessed WrongGuessed deriving (Show)
 
 data World = World Scene Hangman Input
@@ -77,8 +73,12 @@ splash = do
 -- Main functions
 --------------------------------------------------------------------------------
 
-{- Main IO 
-Calls on the GUI function and the menu function. 
+{-  main
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
 -}
 main :: IO ()
 main = do
@@ -324,8 +324,8 @@ updateSceneIO _ w = do
     A brief human-readable description of the purpose of the function.
     PRE:            
     RETURNS:        
-    SIDE EFFECTS:   Prints out the game modes as strings and calls on different
-                    depending on different user input. 
+    SIDE EFFECTS: Prints out the game modes as strings and calls on 
+                  different functions depending on the user input. 
     EXAMPLES:       
 -}
 terminalMenu :: IO ()
@@ -356,7 +356,7 @@ exit = do putStrLn "Shutting down the game..."
     A brief human-readable description of the purpose of the function.
     PRE:            
     RETURNS:        
-    SIDE EFFECTS:   Returns a random IO string from the text file.
+    SIDE EFFECTS: Returns a random IO string from the text file.
     EXAMPLES:       
 -}
 randomWord :: IO String
@@ -371,31 +371,50 @@ randomWord = do
             removedR = removeR word          -- removes the "\r" from the end of the word. Linux problem ...
         return (removedR)                    -- Returns a random word from the list with the help of the random number we get.
 
+{-  removeR xs
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:
+    VARIANT: length xs
+    EXAMPLES:       
+-}
+removeR :: String -> String
 removeR [x]
     | [x] == "\r" = []
     | otherwise   = [x]
 removeR (x:xs) = x : removeR xs
 
-{- singleGame IO 
-
-SIDE EFFECT: Calls on the gameAux function with the predefined hangman as the argument. 
+{-  singleGame
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS: Prints a string to the terminal and calls the game function with the acquired randomWord
+    EXAMPLES:       
 -}
 singleGame :: IO ()
-singleGame =  do
+singleGame = do
     theWord <- randomWord
     let lengthWord = length theWord
         hangman = Hangman theWord [] []
     putStrLn ("Guess a letter or a string with " ++ show lengthWord ++ " letters\n")
-    gameAux hangman
+    game hangman
 
-{- gameAux IO 
+{- game IO 
 Main body function of the hangman game. Checks if the user input is A): A valid guess and B): A correct guess. 
-Depending on the outcomes of A and B, the gameAux will call on different functions. 
+Depending on the outcomes of A and B, the game will call on different functions. 
 
 SIDE EFFECT: Calls on the lose or win function. 
 -}
-gameAux :: Hangman -> IO ()
-gameAux hangman@(Hangman theWord correct guessed) = do
+{-  game hangman
+    Main body function of the hangman game. Checks if the user input is first a valid guess and then a correct guess. 
+    Depending on the outcomes of the checks the game will call on different functions.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
+game :: Hangman -> IO ()
+game hangman@(Hangman theWord correct guessed) = do
     if theWord == correctGuess correct -- check if you won
         then do
             win hangman
@@ -408,7 +427,7 @@ gameAux hangman@(Hangman theWord correct guessed) = do
                         guessesLeft = numbOfGuesses - length guessed
                     tree (guessesLeft)
                     putStrLn (underscore ++ "\n") -- print the current guessed word
-                    putStrLn ("Bad guesses: " ++ guessed)
+                    putStrLn ("Wrong guesses: " ++ guessed)
                     newGuess <- getGuess hangman
                     if length newGuess == length theWord
                         then do
@@ -417,21 +436,23 @@ gameAux hangman@(Hangman theWord correct guessed) = do
                                     win hangman
                                 else do
                                     let newHangman = Hangman theWord correct (guessed ++ newGuess)
-                                    gameAux newHangman
+                                    game newHangman
                         else do    
                             if validGuess hangman newGuess
                                 then do
                                     let newHangman = insertCorrectGuess hangman newGuess
-                                    gameAux newHangman
+                                    game newHangman
                                 else do
                                     putStrLn ("Incorrect, try another letter")
                                     let newHangman = insertWrongGuess hangman newGuess
-                                    gameAux newHangman
+                                    game newHangman
 
-
-{- getGuess IO 
-Takes a user input as a guess and 
-SIDE EFFECT: 
+{-  getGuess hangman
+    Takes a user input and checks with validInput if its valid otherwise it will call itself and repeat till valid input
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
 -}
 getGuess :: Hangman -> IO String
 getGuess hangman = do
@@ -441,13 +462,26 @@ getGuess hangman = do
         else do putStrLn "Bad guess, try again"
                 getGuess hangman 
 
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
 validInput :: String -> Hangman -> Bool
 validInput "" hangman = False
 validInput [x] hangman = True
 validInput ls@(x:xs) (Hangman theWord _ _) = length ls == length theWord
  
-
-underscores :: (Eq a, Num a) => a -> [Char]
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
+underscores :: Int -> [Char]
 underscores 1 = "_"
 underscores x = '_' : ' ' : underscores (x-1)
 
@@ -457,31 +491,70 @@ underscores x = '_' : ' ' : underscores (x-1)
     RETURNS: String
     EXAMPLE: foldl (\l x -> insertLetterinUnderscore l x ) "_ _ _" [(0,'h'),(1,'e'),(2,'j')] == "h e j"
 -}
-insertLetterinUnderscore :: (Eq a, Num a) => [Char] -> (a, Char) -> [Char]
+insertLetterinUnderscore :: [Char] -> (Int, Char) -> [Char]
 insertLetterinUnderscore [x] (0,char)           = [char]
 insertLetterinUnderscore [x] (index, char)      = "_"
 insertLetterinUnderscore (x:y:xs) (0, char)     = char : ' ' : insertLetterinUnderscore xs (-1, char)
 insertLetterinUnderscore (x:y:xs) (index, char) = x : y : insertLetterinUnderscore xs (index-1, char)
 
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
 printWord :: String -> String
 printWord [x]    = [x]
 printWord (x:xs) = x : ' ' : printWord xs 
 
-correctGuess :: [(a, b)] -> [b]
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
+correctGuess :: [(Int, Char)] -> [Char]
 correctGuess = map snd
 
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
 multiGame :: IO ()
 multiGame = do
     putStrLn "Input the word to guess: "
     getWord <- getLine
-    gameAux (Hangman getWord [] [])
-
+    putStrLn ("Continue or type another word? (y/n)")
+    getOption <- getLine
+    if getOption == "y"
+        then game (Hangman getWord [] [])
+        else multiGame
+    
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
 win :: Hangman -> IO ()
 win (Hangman word correct guessed) = do
     putStrLn $ printWord word
     putStrLn "\nCongratulations! You won!\n"
     endgame
 
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
 lose :: Hangman -> IO ()
 lose (Hangman word _ guessed)
     | (length guessed) >= numbOfGuesses = do
@@ -492,41 +565,85 @@ lose (Hangman word _ guessed)
     | otherwise                   = return ()
     --where wrongGuess = length guessed - length [x | x <- guessed, x `elem` word]
 
-
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
 endgame :: IO ()
 endgame = do
     putStrLn "Do you want play again? (y/n): "
     usrInp <- getLine
     when (usrInp == "yes" || usrInp == "y") main
 
-
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
+validGuess :: Hangman -> Input -> Bool
 validGuess hangman@(Hangman w _ _) [c] =  c `elem` w && (not $ alreadyGuessed hangman [c]) -- kollar om din gissning är i ordet
 
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
+alreadyGuessed :: Hangman -> Input -> Bool
 alreadyGuessed (Hangman _ k g) [c] = c `elem` g || c `elem` correctGuess k -- kollar om din gissning redan har gissats
 
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
+insertWrongGuess :: Hangman -> Input -> Hangman
 insertWrongGuess (Hangman w k g) [c] = Hangman w k (g ++ [c])
 
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
+insertCorrectGuess :: Hangman -> Input -> Hangman
 insertCorrectGuess (Hangman w k g) [c] = Hangman w (insert) g
-                                       where insert = foldl (\l x -> insertCinK [] l (x,c)) k (getIndex w c 0)
+                                       where insert = foldl (\l x -> insertInput [] l (x,c)) k (getIndex w c 0)
 
+h1 :: Hangman
 h1 = Hangman "test" [(1,'e')] "l"
 
+h2 :: Hangman
 h2 = Hangman "hello" [(0,'h'),(4,'o')] "g"
 
-{-  insertCinK ys xs (i,c)
+{-  insertInput ys xs (i,c)
     inserts (i,c) in xs according to the index i
-    EXAMPLE: insertCinK [] [(0,'h'),(2,'j')] (1,'e') == [(0,'h'),(1,'e'),(2,'j')]
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES: insertInput [] [(0,'h'),(2,'j')] (1,'e') == [(0,'h'),(1,'e'),(2,'j')]   
 -}
-insertCinK :: [(Int,Char)] -> [(Int,Char)] -> (Int, Char) -> [(Int,Char)]
-insertCinK ys [] (i,c) = foldr (\x l -> x : l) [(i,c)] ys
-insertCinK ys ((xi,xv):xs) (i,c)
+insertInput :: [(Int,Char)] -> [(Int,Char)] -> (Int, Char) -> [(Int,Char)]
+insertInput ys [] (i,c) = foldr (\x l -> x : l) [(i,c)] ys
+insertInput ys ((xi,xv):xs) (i,c)
     | i < xi    = foldr (\x l -> x : l) ((i,c) : ((xi,xv):xs)) ys
-    | otherwise = insertCinK (ys ++ [(xi,xv)]) xs (i,c)
-
+    | otherwise = insertInput (ys ++ [(xi,xv)]) xs (i,c)
 
 {-  getIndex xs c acc
     get the index/es of char c in string xs
-
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
 -}
 getIndex :: String -> Char -> Int -> [Int]
 getIndex "" c acc = []
@@ -534,18 +651,19 @@ getIndex (x:xs) c acc
     | x == c = acc : getIndex xs c (acc + 1)
     | otherwise = getIndex xs c (acc + 1)
 
-
-createTuples :: [Int] -> Char -> [(Int,Char)]
-createTuples [x] c    = [(x,c)]
-createTuples (x:xs) c = (x,c) : createTuples xs c
-
-
 --------------------------------------------------------------------------------
 -- Hangman Drawings
 --------------------------------------------------------------------------------
 
 -- GUI Hangman drawing
 
+{-  functionIdentifier arguments
+    A brief human-readable description of the purpose of the function.
+    PRE:            
+    RETURNS:        
+    SIDE EFFECTS:   
+    EXAMPLES:       
+-}
 drawStick hangman@(Hangman theWord correct guessed) =
     let gLeft = (numbOfGuesses - length guessed)
     in case gLeft of 
