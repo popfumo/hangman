@@ -12,44 +12,102 @@ import Graphics.Gloss.Data.Color
 
 import Test.HUnit
 
-{-  Hangman is based on Strings, list with a tuple that contains a pair with one int and one char 
-        and one list that contains one or more chars. The string denotes the random word that user is
-        guessing on. The list with the tuple that contains an inte and a char denotes how 
-    INVARIANT: The list cant be void, the Int must be a positive value.  
+{-  Hangman is representing the current game state and contains the word to guess,
+    the correct guessed letters and the wrongly guessed letters.
+    In the Hangman rWord correct wrong,
+    rWord is the word to be guessed and is a String;
+    correct is a list of tuples with the key as the index of that Char in rWord and the value is the Char;
+    wrong is a list of wrongly guessed Chars, so i.e its a String.
+    None denotes an empty Hangman and is used when starting new game or quiting.
+    INVARIANT: the list correct must have tuples with positive integers as key and indexed in correct order of rWord  
 -}
 data Hangman = None | Hangman RandomWord CorrectGuessed WrongGuessed deriving (Show)
 
+{-  World is representing the current gui game state and contains the current Scenem
+    the Hangman state and the user input
+    In the World Scene Hangman Input,
+    Scene is a data type with different scenes for displaying different pictures;
+    Hangman is the current game state;
+    Input is a list of Chars from the user input.
+-}
 data World = World Scene Hangman Input
 
+{-  Scene is representing the current scene to be printed.
+    BadInput is a special case where it takes the previous Scene and prints
+    an error screen and then returns to the previous Scene.
+-}
 data Scene = Menu | Single | MultiInput | Multi | BadInput Scene | Win | Lose | Exit
 
+{-  RandomWord
+    Represents the word to be guessed, can be a random word in
+    singleplayer mode or a user input in multiplayer mode.
+    INVARIANT: can't be an empty list
+-}
 type RandomWord = String
+
+{-  WrongGuessed
+    Represents the incorrect guessed letters in a list,
+    i.e it's a string
+-}
 type WrongGuessed = [Char]
+
+{-  CorrectGuessed
+    Represents the correctly guessed letter and the index of that letter in the word to guess.
+    It's list with tuples with the index as key and the Char as value.
+    INVARIANT: the list must have tuples with positive integers as key and indexed in correct order of RandomWord 
+-}
 type CorrectGuessed = [(Int,Char)]
 
+{-  Input
+    Input represents the input taken from the users keybord.
+-}
 type Input = [Char]
 
+{-  Coordinate
+    Represents a coordinate in the picture from origio that's in the center of the picture
+-}
 type Coordinate = (Float,Float)
 
 --------------------------------------------------------------------------------
 -- Global Variables
 --------------------------------------------------------------------------------
 
+{-
+    numbOfGuesses equals how many guesses the player have
+-}
 numbOfGuesses :: Int
 numbOfGuesses = 6
 
+{-
+    filepath tells the program where our list of secret word are located
+-}
 filepath :: String
 filepath = "wordlist.txt"
 
+{-
+    window contains the information about the GUI window
+    with the title as a String, size as a tuple of integers 
+    and position as tuple of integers
+-}
 window :: Display
-window = InWindow "Hangman" (1000 , 700) (10,10)
+window = InWindow "Hangman" (1000 , 700) (10,10) -- change to FullScreen for fullscreen
 
+{-
+    newWorld starts up the menu
+-}
 newWorld :: World
 newWorld = World Menu None []
 
+{-
+    background is used to specify the background color for the GUI
+-}
 background :: Color
 background = white
 
+{-
+    splash is used as a starting screen to welcome the user
+    SIDE EFFECTS: prints a splash screen on the terminal
+-}
 splash :: IO ()
 splash = do
     putStrLn "   ▄▄   ▄▄ ▄▄▄▄▄▄ ▄▄    ▄ ▄▄▄▄▄▄▄ ▄▄   ▄▄ ▄▄▄▄▄▄ ▄▄    ▄  \n\
@@ -74,23 +132,17 @@ splash = do
 --------------------------------------------------------------------------------
 
 {-  main
-    A brief human-readable description of the purpose of the function.
-    PRE:            
-    RETURNS:        
-    SIDE EFFECTS:   
-    EXAMPLES:       
+    main is used to start the game loop
+    SIDE EFFECTS: prints the splash and chooseInterface menu on the terminal
 -}
 main :: IO ()
 main = do
     splash
     chooseInterface
 
-{-  functionIdentifier arguments
-    A brief human-readable description of the purpose of the function.
-    PRE:            
-    RETURNS:        
-    SIDE EFFECTS:   
-    EXAMPLES:       
+{-  chooseInterface
+    a case comparison menu for either starting the graphical or the terminal interface
+    SIDE EFFECTS: prints a menu on the terminal
 -}
 chooseInterface :: IO ()
 chooseInterface = do
@@ -104,12 +156,9 @@ chooseInterface = do
         "2" -> do terminalMenu
         _   -> exit
 
-{-  functionIdentifier arguments
-    A brief human-readable description of the purpose of the function.
-    PRE:            
-    RETURNS:        
-    SIDE EFFECTS:   
-    EXAMPLES:       
+{-  guiMain
+    handles the gui game loop with the gloss in-built function playIO
+    SIDE EFFECTS: displays a window
 -}
 guiMain :: IO ()
 guiMain = playIO 
@@ -121,12 +170,11 @@ guiMain = playIO
     eventHandlerIO -- interpreters the input 
     updateSceneIO  -- catches BadInput and returns previous scene
 
-{-  functionIdentifier arguments
-    A brief human-readable description of the purpose of the function.
-    PRE:            
-    RETURNS:        
-    SIDE EFFECTS:   
-    EXAMPLES:       
+{-  eventHandlerIO event world
+    depending on which Scene the world contains it handles the different events (button presses)
+    and returns a updated world
+    RETURNS: an IO World
+    SIDE EFFECTS: 
 -}
 eventHandlerIO :: Event -> World -> IO World
 eventHandlerIO event world@(World Menu _ _) = do 
@@ -139,32 +187,33 @@ eventHandlerIO event world@(World Menu _ _) = do
 eventHandlerIO (EventKey (SpecialKey KeyDelete) Down _ _) (World scene hangman guess) = do return $ World scene hangman (take (length guess - 1) guess)
 eventHandlerIO (EventKey (SpecialKey KeyBackspace) Down _ _) (World scene hangman guess) = do return $ World scene hangman (take (length guess -1) guess)
 eventHandlerIO (EventKey (Char input) Down _ _) (World scene hangman guess) = do return $ World scene hangman (guess ++ [input])
-eventHandlerIO (EventKey (SpecialKey KeyEnter) Down _ _) (World MultiInput hangman guess) = do return $ World Multi (Hangman guess [] []) []
+eventHandlerIO (EventKey (SpecialKey KeyEnter) Down _ _) (World MultiInput hangman guess) = do 
+    if length guess == 0
+        then return $ World (BadInput MultiInput) hangman []
+        else return $ World Multi (Hangman guess [] []) []
 eventHandlerIO (EventKey (SpecialKey KeyEnter) Down _ _) (World Win _ option) = do return (replay option)
 eventHandlerIO (EventKey (SpecialKey KeyEnter) Down _ _) (World Lose _ option) = do return (replay option)
 eventHandlerIO (EventKey (SpecialKey KeyEnter) Down _ _) world = do return $ checkWholeWord world
 eventHandlerIO event world = do return world
 
-{-  functionIdentifier arguments
-    A brief human-readable description of the purpose of the function.
-    PRE:            
-    RETURNS:        
-    SIDE EFFECTS:   
-    EXAMPLES:       
+{-  checkWholeWord world
+    checks if the guess is a whole word and then if its correct or not. If the guess
+    is not a whole word it will call on checkGuess
+    RETURNS: a World    
+    SIDE EFFECTS: 
 -}
 checkWholeWord :: World -> World
 checkWholeWord world@(World scene hangman@(Hangman word correct guessed) guess)
     | length guess == length word = if guess == word
                                         then World Win hangman []
-                                        else World scene (Hangman word correct (guessed ++ guess)) []
+                                        else checkLose (World scene (Hangman word correct (guessed ++ guess)) [])
     | otherwise = checkGuess world
 
-{-  functionIdentifier arguments
-    A brief human-readable description of the purpose of the function.
-    PRE:            
-    RETURNS:        
-    SIDE EFFECTS:   
-    EXAMPLES:       
+{-  checkGuess world
+    first calls on validInput with the guess and then calls on validGuess with the guess,
+    depending on the return it creates a new world and checks win or lose
+    RETURNS: a World 
+    SIDE EFFECTS:    
 -}
 checkGuess :: World -> World
 checkGuess (World scene hangman@(Hangman word correct guessed) guess)
@@ -175,36 +224,33 @@ checkGuess (World scene hangman@(Hangman word correct guessed) guess)
                                          in checkLose (World scene newHangman [])
     | otherwise = World (BadInput scene) hangman []
 
-{-  functionIdentifier arguments
-    A brief human-readable description of the purpose of the function.
-    PRE:            
-    RETURNS:        
-    SIDE EFFECTS:   
-    EXAMPLES:       
+{-  checkWin world 
+    checkWin checks if the winning criterias are satisfied or not 
+    RETURNS: It returns a world, if the winning criterias are meet it returns a world Win otherwise it returns the same world
+    SIDE EFFECTS: 
+    EXAMPLES: checkWin World single Hangman "hello"  [(1,'h'),(2,'e'),(3,'l'),(4,'l'),(5,'o')] [] [] == World Win hangman []
 -}
 checkWin :: World -> World
 checkWin world@(World scene hangman@(Hangman word correct guessed) guess)
     | correctGuess correct == word = World Win hangman []
     | otherwise = world 
 
-{-  functionIdentifier arguments
-    A brief human-readable description of the purpose of the function.
-    PRE:            
-    RETURNS:        
+{-  checkLose world
+    checkLose cheks if the use has run out of guesses.
+    RETURNS: It returns a world, if the use has run out of guesses it returns a world lose otherwise it returns the same world        
     SIDE EFFECTS:   
-    EXAMPLES:       
+    EXAMPLES: World _ Hangman _ _ ["h","e","l","l","o","w"] [] == World Lose hangman []    
 -}
 checkLose :: World -> World
 checkLose world@(World scene hangman@(Hangman word correct guessed) guess)
-    | length guessed == numbOfGuesses = World Lose hangman []
+    | length guessed >= numbOfGuesses = World Lose hangman []
     | otherwise = world
 
-{-  functionIdentifier arguments
-    A brief human-readable description of the purpose of the function.
-    PRE:            
-    RETURNS:        
-    SIDE EFFECTS:   
-    EXAMPLES:       
+{-  replay String
+    Replay takes a input from the user and either replays the game or exits the program            
+    RETURNS: Returns a world, either a world exit or a newWorld   
+    EXAMPLES: Replay 'y' == newWorld
+              Replay 'n' == World Exit None []   
 -}
 replay :: String -> World
 replay [input]
@@ -212,10 +258,8 @@ replay [input]
     | otherwise    = World Exit None []
 
 {-  functionIdentifier arguments
-    A brief human-readable description of the purpose of the function.
-    PRE:            
-    RETURNS:        
-    SIDE EFFECTS:   
+    Prints a different picture depending on the scene            
+    RETURNS: A picture 
     EXAMPLES:       
 -}
 drawingSceneIO :: World -> IO Picture
@@ -226,8 +270,8 @@ drawingSceneIO (World scene hangman guess) = do
                 MultiInput -> printScene (multiInputScene guess)
                 Multi   -> printScene (hangScene hangman guess)
                 (BadInput scene) -> printScene badInputScene
-                Lose    -> printScene (loseScene hangman)
-                Win     -> printScene (winScene hangman)
+                Lose    -> printScene (loseScene hangman guess)
+                Win     -> printScene (winScene hangman guess)
                 Exit    -> exitSuccess
 
 {-  functionIdentifier arguments
@@ -298,11 +342,11 @@ multiInputScene guess = [hangtext (0,0) "Enter a word", hangtext (0,-40) guess]
 badInputScene :: [Picture]
 badInputScene = [color red $ rectangleSolid 2000 2000, hangtext (0,0) "BAD INPUT"]
 
-loseScene :: Hangman -> [Picture]
-loseScene hangman@(Hangman word correct guessed) = drawing6 ++ [(hangtext (0,-180) $ "Correct word was: " ++ word), (hangtext (0,-140) "You lost"), replayScene]
+loseScene :: Hangman -> Input -> [Picture]
+loseScene hangman@(Hangman word correct guessed) guess = drawing6 ++ [(hangtext (0,-180) $ "Correct word was: " ++ word), (hangtext (0,-140) "You lost"), replayScene, hangtext (0,-260) guess]
 
-winScene :: Hangman -> [Picture]
-winScene hangman@(Hangman word correct guessed) = (drawStick hangman) ++ [(hangtext (0,-150) "You Won"), replayScene] 
+winScene :: Hangman -> Input -> [Picture]
+winScene hangman@(Hangman word correct guessed) guess = (drawStick hangman) ++ [(hangtext (0,-150) "You Won"), replayScene, hangtext (0,-260) guess] 
 
 replayScene :: Picture
 replayScene = hangtext (0,-220) "Do you want to play again? (y/n) "
@@ -346,7 +390,7 @@ terminalMenu = do
     A brief human-readable description of the purpose of the function.
     PRE:            
     RETURNS:        
-    SIDE EFFECTS:   Prints out the string "Shutting down the game..." on the terminal
+    SIDE EFFECTS: Prints out the string "Shutting down the game..." on the terminal
     EXAMPLES:       
 -}
 exit :: IO ()
@@ -493,9 +537,12 @@ underscores x = '_' : ' ' : underscores (x-1)
 -}
 insertLetterinUnderscore :: [Char] -> (Int, Char) -> [Char]
 insertLetterinUnderscore [x] (0,char)           = [char]
-insertLetterinUnderscore [x] (index, char)      = "_"
-insertLetterinUnderscore (x:y:xs) (0, char)     = char : ' ' : insertLetterinUnderscore xs (-1, char)
+insertLetterinUnderscore (x:y:xs) (0, char)     = char : ' ' : xs
 insertLetterinUnderscore (x:y:xs) (index, char) = x : y : insertLetterinUnderscore xs (index-1, char)
+
+--iLu _ _ _ (1, "e") = _" " : iLu _ _ (1-1, "e")
+
+--iLu _ _ (0, "e") = _" " : "e" " " : _ 
 
 {-  functionIdentifier arguments
     A brief human-readable description of the purpose of the function.
@@ -544,6 +591,7 @@ multiGame = do
 -}
 win :: Hangman -> IO ()
 win (Hangman word correct guessed) = do
+    tree (numbOfGuesses - length guessed)
     putStrLn $ printWord word
     putStrLn "\nCongratulations! You won!\n"
     endgame
@@ -565,12 +613,11 @@ lose (Hangman word _ guessed)
     | otherwise                   = return ()
     --where wrongGuess = length guessed - length [x | x <- guessed, x `elem` word]
 
-{-  functionIdentifier arguments
-    A brief human-readable description of the purpose of the function.
-    PRE:            
-    RETURNS:        
-    SIDE EFFECTS:   
-    EXAMPLES:       
+{-  endgame
+
+    RETURNS: Either returns nothing or calls on main.     
+    SIDE EFFECTS: Prints out a string  
+    EXAMPLES: usrInp == yes => main    
 -}
 endgame :: IO ()
 endgame = do
@@ -578,32 +625,30 @@ endgame = do
     usrInp <- getLine
     when (usrInp == "yes" || usrInp == "y") main
 
-{-  functionIdentifier arguments
-    A brief human-readable description of the purpose of the function.
-    PRE:            
-    RETURNS:        
-    SIDE EFFECTS:   
-    EXAMPLES:       
+{-  validGuess hangman@(Hangman w _ _) [c]
+    Checks if the player guess is correct.          
+    RETURNS: A boolean satement 
+    SIDE EFFECTS: None   
+    EXAMPLES: validGuess hangman@(Hangman w _ _) `a` = `a` elem w == True
 -}
 validGuess :: Hangman -> Input -> Bool
 validGuess hangman@(Hangman w _ _) [c] =  c `elem` w && (not $ alreadyGuessed hangman [c]) -- kollar om din gissning är i ordet
 
-{-  functionIdentifier arguments
-    A brief human-readable description of the purpose of the function.
-    PRE:            
-    RETURNS:        
-    SIDE EFFECTS:   
-    EXAMPLES:       
+{-  alreadyGuessed  (Hangman _ k g) [c]
+    Checks if the player is guessed have already been guessed.          
+    RETURNS: A boolean statement.    
+    SIDE EFFECTS: None   
+    EXAMPLES: alreadyGuessed (Hangman _ k g) [c] = c `elem` correctGuess k == True 
 -}
 alreadyGuessed :: Hangman -> Input -> Bool
 alreadyGuessed (Hangman _ k g) [c] = c `elem` g || c `elem` correctGuess k -- kollar om din gissning redan har gissats
 
-{-  functionIdentifier arguments
-    A brief human-readable description of the purpose of the function.
-    PRE:            
-    RETURNS:        
-    SIDE EFFECTS:   
-    EXAMPLES:       
+{-  insertWrongGuess (Hangman w k g)
+    Inserts the wrong guess in the guess list. 
+    PRE: Either a Char or a list of Chars. 
+    RETURNS: A list of Chars.       
+    SIDE EFFECTS: None. 
+    EXAMPLES: insertWrongGuess (Hangman w k []) 'a' == insertWrongGuess (Hangman w k [a])       
 -}
 insertWrongGuess :: Hangman -> Input -> Hangman
 insertWrongGuess (Hangman w k g) [c] = Hangman w k (g ++ [c])
