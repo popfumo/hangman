@@ -6,10 +6,9 @@ import Control.Monad
 
 import Graphics.Gloss
 import Graphics.Gloss.Data.ViewPort
-import Graphics.Gloss.Interface.IO.Game 
 import Graphics.Gloss.Data.Picture
 import Graphics.Gloss.Data.Color
-
+import Graphics.Gloss.Interface.IO.Game
 import Test.HUnit
 
 {-  Hangman is representing the current game state and contains the word to guess,
@@ -21,7 +20,7 @@ import Test.HUnit
     None denotes an empty Hangman and is used when starting new game or quiting.
     INVARIANT: the list correct must have tuples with positive integers as key and indexed in correct order of rWord  
 -}
-data Hangman = None | Hangman RandomWord CorrectGuessed WrongGuessed deriving (Show)
+data Hangman = None | Hangman RandomWord CorrectGuessed WrongGuessed deriving (Show, Eq)
 
 {-  World is representing the current gui game state and contains the current Scene,
     the Hangman state and the user input
@@ -30,13 +29,13 @@ data Hangman = None | Hangman RandomWord CorrectGuessed WrongGuessed deriving (S
     Hangman is the current game state;
     Input is a list of Chars from the user input.
 -}
-data World = World Scene Hangman Input deriving (Show)
+data World = World Scene Hangman Input deriving (Show, Eq)
 
 {-  Scene is representing the current scene to be printed.
     BadInput is a special case where it takes the previous Scene and prints
     an error screen and then returns to the previous Scene.
 -}
-data Scene = Menu | Single | MultiInput | Multi | BadInput Scene | Win | Lose | Exit deriving (Show)
+data Scene = Menu | Single | MultiInput | Multi | BadInput Scene | Win | Lose | Exit deriving (Show, Eq)
 
 {-  RandomWord
     Represents the word to be guessed, can be a random word in
@@ -174,7 +173,6 @@ guiMain = playIO
     depending on which Scene the world contains it handles the different events (button presses)
     and returns a updated world
     RETURNS: an IO World
-    SIDE EFFECTS: 
 -}
 eventHandlerIO :: Event -> World -> IO World
 eventHandlerIO event world@(World Menu _ _) = do 
@@ -199,8 +197,10 @@ eventHandlerIO event world = do return world
 {-  checkWholeWord world
     checks if the guess is a whole word and then if its correct or not. If the guess
     is not a whole word it will call on checkGuess
-    RETURNS: a World    
-    SIDE EFFECTS: 
+    RETURNS: a World
+    EXAMPLES: checkWholeWord (World Single h2 "hello") == (World Win (Hangman "hello" [(0,'h'),(4,'o')] "g") "")
+              checkWholeWord (World Single h2 "horse") == (World Lose (Hangman "hello" [(0,'h'),(4,'o')] "ghorse") "")
+              checkWholeWord (World Single h2 "")      == (World (BadInput Single) (Hangman "hello" [(0,'h'),(4,'o')] "g") "")
 -}
 checkWholeWord :: World -> World
 checkWholeWord world@(World scene hangman@(Hangman word correct guessed) guess)
@@ -215,6 +215,7 @@ checkWholeWord world@(World scene hangman@(Hangman word correct guessed) guess)
     RETURNS: a World 
     EXAMPLES: checkGuess (World Single h2 "h") == World Single (Hangman "hello" [(0,'h'),(4,'o')] "gh") ""
               checkGuess (World Single h2 "e") == World Single (Hangman "hello" [(0,'h'),(1,'e'),(4,'o')] "g") ""
+              checkGuess (World Single h2 "")  == World (BadInput Single) (Hangman "hello" [(0,'h'),(4,'o')] "g") ""
 -}
 checkGuess :: World -> World
 checkGuess (World scene hangman@(Hangman word correct guessed) guess)
@@ -228,7 +229,7 @@ checkGuess (World scene hangman@(Hangman word correct guessed) guess)
 {-  checkWin world 
     checkWin checks if the winning criterias are satisfied or not 
     RETURNS: It returns a world, if the winning criterias are meet it returns a world Win otherwise it returns the same world
-    EXAMPLES: checkWin World single Hangman "hello"  [(1,'h'),(2,'e'),(3,'l'),(4,'l'),(5,'o')] [] [] == World Win hangman []
+    EXAMPLES: checkWin (World Single (Hangman "hello" [(0,'h'),(1,'e'),(2,'l'),(3,'l'),(4,'o')] []) []) == (World Win (Hangman "hello" [(0,'h'),(1,'e'),(2,'l'),(3,'l'),(4,'o')] "") "")
 -}
 checkWin :: World -> World
 checkWin world@(World scene hangman@(Hangman word correct guessed) guess)
@@ -238,20 +239,21 @@ checkWin world@(World scene hangman@(Hangman word correct guessed) guess)
 {-  checkLose world
     checkLose cheks if the use has run out of guesses.
     RETURNS: It returns a world, if the use has run out of guesses it returns a world lose otherwise it returns the same world
-    EXAMPLES: World _ Hangman _ _ ["h","e","l","l","o","w"] [] == World Lose hangman []    
+    EXAMPLES: checkLose (World Single (Hangman "hello" [(0,'h'),(4,'o')] "gkfjop") []) == World Lose (Hangman "hello" [(0,'h'),(4,'o')] "gkfjop") ""
 -}
 checkLose :: World -> World
 checkLose world@(World scene hangman@(Hangman word correct guessed) guess)
     | length guessed >= numbOfGuesses = World Lose hangman []
     | otherwise = world
 
-{-  replay String
-    Replay takes a input from the user and either replays the game or exits the program            
-    RETURNS: Returns a world, either a world exit or a newWorld   
-    EXAMPLES: Replay 'y' == newWorld
-              Replay 'n' == World Exit None []   
+{-  replay input
+    replay takes an input from the user and either replays the game or exits the program            
+    RETURNS: Returns a world, either a World Exit or a newWorld   
+    EXAMPLES: replay "y" == (World Menu None "")
+              replay "n" == (World Exit None "")  
 -}
 replay :: String -> World
+replay ""          = World Exit None []
 replay [input]
     | input == 'y' = newWorld
     | otherwise    = World Exit None []
@@ -274,7 +276,7 @@ drawingSceneIO (World scene hangman guess) = do
                 Exit    -> exitSuccess
 
 {-  printMenu xs
-    takes a list of Picture and prints the menu 
+    takes a list of Picture and prints the GUI menu 
     RETURNS: an IO Picture    
     SIDE EFFECTS: prints a IO Picture in the window
 -}
@@ -465,8 +467,9 @@ randomWord = do
               removeR "tester"   == "tester"
 -}
 removeR :: String -> String
+removeR ""        = ""
 removeR [x]
-    | [x] == "\r" = []
+    | [x] == "\r" = ""
     | otherwise   = [x]
 removeR (x:xs) = x : removeR xs
 
@@ -565,11 +568,14 @@ validInput xs (Hangman theWord _ _) = length xs == length theWord
  
 {-  underscores i
     creates a String of i numbers of '_' with spaces between
+    PRE: i must be a positive integer
     RETURNS: a String
     VARIANT: i
-    EXAMPLES: underscores 5 == "_ _ _ _ _"  
+    EXAMPLES: underscores 5 == "_ _ _ _ _"
+              underscores 1 == "_"
 -}
 underscores :: Int -> String
+underscores 0 = ""
 underscores 1 = "_"
 underscores x = '_' : ' ' : underscores (x-1)
 
@@ -640,38 +646,45 @@ endgame = do
 
 {-  validGuess hangman guess
     checks if the guess is correct.
-    PRE: hangman can't be None         
+    PRE: hangman can't be None and guess can only be a String with 1 or 0 elements        
     RETURNS: a Bool
     EXAMPLES: validGuess hangman@(Hangman w _ _) `a` = `a` elem w == True
 -}
 validGuess :: Hangman -> Input -> Bool
-validGuess hangman@(Hangman w _ _) [c] =  c `elem` w && (not $ alreadyGuessed hangman [c]) -- kollar om din gissning är i ordet
+validGuess hangman                 ""  = False
+validGuess hangman@(Hangman w _ _) [c] = c `elem` w && (not $ alreadyGuessed hangman [c]) -- kollar om din gissning är i ordet
 
 {-  alreadyGuessed hangman input
     checks if the input have already been guessed. 
-    PRE: hangman can't be None        
+    PRE: hangman can't be None and guess can only be a String with 1 or 0 elements          
     RETURNS: a Bool 
-    EXAMPLES: alreadyGuessed (Hangman _ k g) [c] = c `elem` correctGuess k == True 
+    EXAMPLES: alreadyGuessed h2 "h" == True
+              alreadyGuessed h2 "l" == False
 -}
 alreadyGuessed :: Hangman -> Input -> Bool
+alreadyGuessed hangman         ""  = False
 alreadyGuessed (Hangman _ k g) [c] = c `elem` g || c `elem` correctGuess k -- kollar om din gissning redan har gissats
 
 {-  insertWrongGuess hangman input
     inserts the wrong guess in the guess list. 
-    PRE: hangman can't be None
+    PRE: hangman can't be None and guess can only be a String with 1 or 0 elements  
     RETURNS: a Hangman
-    EXAMPLES: insertWrongGuess h2 "a" == Hangman "hello" [(0,'h'),(4,'o')] "ga"       
+    EXAMPLES: insertWrongGuess h2 "a" == Hangman "hello" [(0,'h'),(4,'o')] "ga" 
+              insertWrongGuess h2 ""  == Hangman "hello" [(0,'h'),(4,'o')] "g"    
 -}
 insertWrongGuess :: Hangman -> Input -> Hangman
+insertWrongGuess hangman         ""  = hangman
 insertWrongGuess (Hangman w k g) [c] = Hangman w k (g ++ [c])
 
 {-  insertCorrectGuess hangman input
     inserts the input into hangman with the correct index as key and input as the value
-    PRE: hangman can't be None
+    PRE: hangman can't be None and guess can only be a String with 1 or 0 elements  
     RETURNS: a Hangman
     EXAMPLES: insertCorrectGuess h2 "e" == Hangman "hello" [(0,'h'),(1,'e'),(4,'o')] "g"
+              insertCorrectGuess h2 ""  == Hangman "hello" [(0,'h'),(4,'o')] "g"
 -}
 insertCorrectGuess :: Hangman -> Input -> Hangman
+insertCorrectGuess hangman         ""  = hangman
 insertCorrectGuess (Hangman w k g) [c] = Hangman w (insert) g
                                        where insert = foldl (\l x -> insertInput [] l (x,c)) k (getIndex w c 0)
 
@@ -685,8 +698,9 @@ h2 = Hangman "hello" [(0,'h'),(4,'o')] "g"
 
 {-  insertInput ys xs (i,c)
     inserts (i,c) in xs according to the index i
+    PRE: i key can't already exist in xs
     RETURNS: a CorrectGuessed
-    EXAMPLES: insertInput [] [(0,'h'),(2,'j')] (1,'e') == [(0,'h'),(1,'e'),(2,'j')]   
+    EXAMPLES: insertInput [] [(0,'h'),(4,'o')] (1,'e') == [(0,'h'),(1,'e'),(4,'o')]   
 -}
 insertInput :: CorrectGuessed -> CorrectGuessed -> (Int, Char) -> CorrectGuessed
 insertInput ys [] (i,c) = foldr (\x l -> x : l) [(i,c)] ys
@@ -698,6 +712,7 @@ insertInput ys ((xi,xv):xs) (i,c)
     get the index/es of char c in string xs
     RETURNS: a list of Integers
     EXAMPLES: getIndex "hello" 'l' 0 == [2,3]
+              getIndex "hello" 'g' 0 == []
 -}
 getIndex :: String -> Char -> Int -> [Int]
 getIndex "" c acc = []
@@ -811,17 +826,75 @@ testVI1 = TestCase $ assertEqual "validInput" True (validInput "horse" h2)
 testVI2 = TestCase $ assertEqual "validInput" False (validInput "" h2)
 testVI3 = TestCase $ assertEqual "validInput" False (validInput "it" h2)
 
+-- checkGuess
+testCG1 = TestCase $ assertEqual "checkGuess" (World Single (Hangman "hello" [(0,'h'),(4,'o')] "gh") "") (checkGuess (World Single h2 "h"))
+testCG2 = TestCase $ assertEqual "checkGuess" (World Single (Hangman "hello" [(0,'h'),(1,'e'),(4,'o')] "g") "") (checkGuess (World Single h2 "e"))
+testCG3 = TestCase $ assertEqual "checkGuess" (World (BadInput Single) (Hangman "hello" [(0,'h'),(4,'o')] "g") "") (checkGuess (World Single h2 "")) 
+
 -- validGuess
 testVG1 = TestCase $ assertEqual "validGuess" True (validGuess h2 "e")
 testVG2 = TestCase $ assertEqual "validGuess" False (validGuess h2 "k")
+testVG3 = TestCase $ assertEqual "validGuess" False (validGuess h2 "")
+
+-- correctGuess
+testCRG1 = TestCase $ assertEqual "correctGuess" "hi" (correctGuess [(0,'h'),(1,'i')])
+testCRG2 = TestCase $ assertEqual "correctGuess" ""   (correctGuess [])
 
 -- alreadyGuessed
-
+testAG1 = TestCase $ assertEqual "alreadyGuessed" True  (alreadyGuessed h2 "h")
+testAG2 = TestCase $ assertEqual "alreadyGuessed" False (alreadyGuessed h2 "l")
+testAG3 = TestCase $ assertEqual "alreadyGuessed" False (alreadyGuessed h2 "")
 
 -- insertWrongGuess
-
+testIW1 = TestCase $ assertEqual "insertWrongGuess" (Hangman "hello" [(0,'h'),(4,'o')] "ga") (insertWrongGuess h2 "a")
+testIW2 = TestCase $ assertEqual "insertWrongGuess" (Hangman "hello" [(0,'h'),(4,'o')] "g")  (insertWrongGuess h2 "")
 
 -- insertCorrectGuess
+testICG1 = TestCase $ assertEqual "insertCorrectGuess" (Hangman "hello" [(0,'h'),(1,'e'),(4,'o')] "g") (insertCorrectGuess h2 "e") 
+testICG2 = TestCase $ assertEqual "insertCorrectGuess" (Hangman "hello" [(0,'h'),(4,'o')] "g")         (insertCorrectGuess h2 "")
+
+-- insertInput
+testII1 = TestCase $ assertEqual "insertInput" [(0,'h'),(1,'e'),(4,'o')] (insertInput [] [(0,'h'),(4,'o')] (1,'e')) 
+testII2 = TestCase $ assertEqual "insertInput" [(0,'h'),(1,'e'),(4,'o')] (insertInput [] [(0,'h'),(1,'e')] (4,'o')) 
+testII3 = TestCase $ assertEqual "insertInput" [(2,'l')]                 (insertInput [] [] (2,'l')) 
+
+-- getIndex
+testGI1 = TestCase $ assertEqual "getIndex" [2,3] (getIndex "hello" 'l' 0)
+testGI2 = TestCase $ assertEqual "getIndex" [4,5] (getIndex "hello" 'l' 2)
+testGI3 = TestCase $ assertEqual "getIndex" []    (getIndex "hello" 'g' 0)
+
+-- checkWholeWord
+testCWG1 = TestCase $ assertEqual "checkWholeWord" (World Win (Hangman "hello" [(0,'h'),(4,'o')] "g") "")               (checkWholeWord (World Single h2 "hello")) 
+testCWG2 = TestCase $ assertEqual "checkWholeWord" (World Lose (Hangman "hello" [(0,'h'),(4,'o')] "ghorse") "")         (checkWholeWord (World Single h2 "horse"))
+testCWG3 = TestCase $ assertEqual "checkWholeWord" (World (BadInput Single) (Hangman "hello" [(0,'h'),(4,'o')] "g") "") (checkWholeWord (World Single h2 ""))
+
+-- checkWin
+testCW1 = TestCase $ assertEqual "checkWin" (World Win (Hangman "hello" [(0,'h'),(1,'e'),(2,'l'),(3,'l'),(4,'o')] "") "") (checkWin (World Single (Hangman "hello" [(0,'h'),(1,'e'),(2,'l'),(3,'l'),(4,'o')] []) []))
+testCW2 = TestCase $ assertEqual "checkWin" (World Single (Hangman "hello" [(0,'h'),(4,'o')] "") "") (checkWin (World Single (Hangman "hello" [(0,'h'),(4,'o')] []) []))
+
+-- checkLose
+testCL1 = TestCase $ assertEqual "checkLose" (World Lose (Hangman "hello" [(0,'h'),(4,'o')] "gkfjop") "") (checkLose (World Single (Hangman "hello" [(0,'h'),(4,'o')] "gkfjop") []))
+testCL2 = TestCase $ assertEqual "checkLose" (World Single (Hangman "hello" [(0,'h'),(4,'o')] "gk") "")   (checkLose (World Single (Hangman "hello" [(0,'h'),(4,'o')] "gk") []))
+
+-- replay
+testR1 = TestCase $ assertEqual "replay" (World Menu None "") (replay "y")
+testR2 = TestCase $ assertEqual "replay" (World Exit None "") (replay "n")
+testR3 = TestCase $ assertEqual "replay" (World Exit None "") (replay "")
+
+-- removeR
+testRR1 = TestCase $ assertEqual "removeR" "tester" (removeR "tester\r")
+testRR2 = TestCase $ assertEqual "removeR" "tester" (removeR "tester")
+testRR3 = TestCase $ assertEqual "removeR" ""       (removeR "")
+
+-- underscores
+testU1 = TestCase $ assertEqual "underscores" "_ _ _ _ _" (underscores 5)
+testU2 = TestCase $ assertEqual "underscores" "_"         (underscores 1)
+testU3 = TestCase $ assertEqual "underscores" ""          (underscores 0)
 
 
-runAllTests = runTestTT $ TestList [testVI1, testVI2, testVI3, testVG1, testVG2]
+-- printWord
+testPW1 = TestCase $ assertEqual "printWord" "h e l l o" (printWord "hello")
+testPW2 = TestCase $ assertEqual "printWord" "h"         (printWord "h")
+testPW3 = TestCase $ assertEqual "printWord" ""          (printWord "")
+
+runAllTests = runTestTT $ TestList [testVI1, testVI2, testVI3, testCG1, testCG2, testCG3, testVG1, testVG2, testVG3, testCRG1, testCRG2, testAG1, testAG2, testAG3, testIW1, testIW2, testICG1, testICG2, testII1, testII2, testII3, testGI1, testGI2, testGI3, testCWG1, testCWG2, testCWG3, testCW1, testCW2, testCL1, testCL2, testR1, testR2, testR3, testRR1, testRR2, testRR3, testU1, testU2, testU3, testPW1, testPW2, testPW3]
