@@ -2,6 +2,8 @@ import System.IO
 import System.Exit
 import System.Random
 
+import Data.Char
+
 import Control.Monad
 
 import Graphics.Gloss
@@ -184,7 +186,10 @@ eventHandlerIO event world@(World Menu _ _) = do
         _ -> return world
 eventHandlerIO (EventKey (SpecialKey KeyDelete) Down _ _) (World scene hangman guess) = do return $ World scene hangman (take (length guess - 1) guess)
 eventHandlerIO (EventKey (SpecialKey KeyEsc) Down _ _) (World scene hangman guess) = do return $ World Exit None []
-eventHandlerIO (EventKey (Char input) Down _ _) (World scene hangman guess) = do return $ World scene hangman (guess ++ [input])
+eventHandlerIO (EventKey (Char input) Down _ _) (World scene hangman guess) = do 
+    if isLetter input
+        then return $ World scene hangman (guess ++ [input])
+        else return $ World (BadInput scene) hangman guess
 eventHandlerIO (EventKey (SpecialKey KeyEnter) Down _ _) (World MultiInput hangman guess) = do 
     if length guess == 0
         then return $ World (BadInput MultiInput) hangman []
@@ -563,8 +568,8 @@ getGuess hangman = do
 -}
 validInput :: String -> Hangman -> Bool
 validInput "" hangman = False
-validInput [x] hangman = True
-validInput xs (Hangman theWord _ _) = length xs == length theWord
+validInput [x] hangman = isLetter x
+validInput xs (Hangman theWord _ _) = length xs == length theWord && length (filter (== False) $ map isLetter xs) == 0
  
 {-  underscores i
     creates a String of i numbers of '_' with spaces between
